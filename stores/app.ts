@@ -253,26 +253,65 @@ function createDefaultDockerComposeConfig(
           pull_policy: 'always',
           ports: ['8082:8082'],
           environment: [
+            'LOGGING_FORMAT=text',
+            'LOGGING_LEVEL=info',
             'SERVER_PORT=8082',
+            'SERVER_CACHEENABLED=false',
+            'SERVER_STRICTVERIFICATION=permissive',
+            'SERVER_VERIFICATIONENDPOINTAVAILABLE=true',
+            'SERVER_READ_HEADER_TIMEOUT_SECONDS=15',
+            'SERVER_READ_TIMEOUT_SECONDS=300',
+            'SERVER_WRITE_TIMEOUT_SECONDS=300',
+            'SERVER_IDLE_TIMEOUT_SECONDS=60',
+            'SERVER_SHUTDOWN_TIMEOUT_SECONDS=10',
             'CORS_ALLOWEDORIGINS=*',
             'CORS_ALLOWEDHEADERS=*',
-            'CORS_ALLOWEDCREDENTIALS=true',
+            'CORS_ALLOWCREDENTIALS=true',
             'CORS_ALLOWEDMETHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS',
             'POSTGRES_HOST=db',
             'POSTGRES_PORT=5432',
             'POSTGRES_USER=admin',
             'POSTGRES_PASSWORD=admin123',
             'POSTGRES_DBNAME=basyxTestDB',
-            'POSTGRES_MAXOPENCONNECTIONS=500',
-            'POSTGRES_MAXIDLECONNECTIONS=500',
+            'POSTGRES_SSLMODE=disable',
+            'POSTGRES_CONNECTTIMEOUTSECONDS=0',
+            'POSTGRES_MAXOPENCONNECTIONS=50',
+            'POSTGRES_MAXIDLECONNECTIONS=25',
             'POSTGRES_CONNMAXLIFETIMEMINUTES=5',
+            'POSTGRES_CONNMAXIDLETIMEMINUTES=0',
             'JWS_PRIVATEKEYPATH=/app/rsa-key.pem',
             'ABAC_ENABLED=false',
+            'GENERAL_ENABLEIMPLICITCASTS=true',
+            'GENERAL_ENABLEDESCRIPTORDEBUG=false',
+            'GENERAL_ENABLECUSTOMMIDDLEWAREHEADERINJECTION=false',
+            'GENERAL_SUPPORTSSINGULARSUPPLEMENTALSEMANTICID=false',
+            'GENERAL_TRUSTPROXYHEADERS=false',
+            'GENERAL_UPLOADMAXSIZEBYTES=134217728',
+            'GENERAL_AASXMAXPARTCOUNT=10000',
+            'GENERAL_AASXMAXOPCMETADATASIZEBYTES=16777216',
+            'GENERAL_AASXMAXPARTEXPANDEDSIZEBYTES=134217728',
+            'GENERAL_AASXMAXTOTALEXPANDEDSIZEBYTES=536870912',
+            'GENERAL_AASXMAXTHUMBNAILSIZEBYTES=16777216',
+            'GENERAL_BULK_BATCH_LIMIT=1000',
             'GENERAL_AASREGISTRYINTEGRATION=true',
             'GENERAL_SUBMODELREGISTRYINTEGRATION=true',
             'GENERAL_DISCOVERYINTEGRATION=true',
             `GENERAL_EXTERNALURL=${aasEnvironmentExternalUrl}`,
             'GENERAL_AAS_PRECONFIG_PATHS=/app/preconfiguration',
+            'BASYX_HISTORY_MODE=off',
+            'BASYX_HISTORY_RETENTION_DAYS=0',
+            'BASYX_HISTORY_FULL_SNAPSHOT_INTERVAL=1',
+            'BASYX_HISTORY_IMMUTABILITY=none',
+            'BASYX_AUDIT_IDENTITY_MODE=none',
+            'BASYX_HISTORY_EVIDENCE_ENABLED=false',
+            'BASYX_HISTORY_INTEGRITY_ANCHOR_PROVIDER=none',
+            'BASYX_EVENTING_ENABLED=false',
+            'BASYX_EVENTING_FORMAT=cloudevents',
+            'BASYX_EVENTING_OUTBOX_ENABLED=false',
+            'BASYX_EVENTING_TOPIC_PREFIX=basyx',
+            'BASYX_EVENTING_FEED_ENABLED=false',
+            'OTEL_TRACES_EXPORTER=none',
+            'OTEL_METRICS_EXPORTER=none',
           ],
           volumes: ['./basyx/rsa-key.pem:/app/rsa-key.pem:ro', './aas:/app/preconfiguration:ro'],
           depends_on: {
@@ -308,9 +347,12 @@ function createDefaultDockerComposeConfig(
             'POSTGRES_USER=admin',
             'POSTGRES_PASSWORD=admin123',
             'POSTGRES_DBNAME=basyxTestDB',
-            'POSTGRES_MAXOPENCONNECTIONS=500',
-            'POSTGRES_MAXIDLECONNECTIONS=500',
+            'POSTGRES_SSLMODE=disable',
+            'POSTGRES_CONNECTTIMEOUTSECONDS=0',
+            'POSTGRES_MAXOPENCONNECTIONS=50',
+            'POSTGRES_MAXIDLECONNECTIONS=25',
             'POSTGRES_CONNMAXLIFETIMEMINUTES=5',
+            'POSTGRES_CONNMAXIDLETIMEMINUTES=0',
           ],
           depends_on: {
             db: {
@@ -445,6 +487,16 @@ function initialState() {
           {
             id: 'ovw-aas-environment-summary',
             title: 'Runtime & Endpoints',
+            type: 'overview',
+          },
+          {
+            id: 'ovw-aas-environment-history',
+            title: 'History & Audit',
+            type: 'overview',
+          },
+          {
+            id: 'ovw-aas-environment-observability',
+            title: 'Logging & OpenTelemetry',
             type: 'overview',
           },
           {
@@ -725,6 +777,39 @@ export const useAppStore = defineStore('app', {
     },
     setBasyxInfraConfig(config: ConfigObject) {
       this.basyxInfraConfig = config;
+    },
+    updateServiceEnvironment(
+      serviceName: string,
+      values: Record<string, string>,
+      removeKeys: string[] = []
+    ) {
+      if (
+        !this.dockerComposeConfig?.value ||
+        typeof this.dockerComposeConfig.value !== 'object' ||
+        !('services' in this.dockerComposeConfig.value)
+      ) {
+        return;
+      }
+
+      const dockerComposeConfig = cloneSerializable(this.dockerComposeConfig);
+      const services = (
+        dockerComposeConfig.value as { services: Record<string, DockerComposeService> }
+      ).services;
+      const service = services[serviceName];
+      if (!service) {
+        return;
+      }
+
+      if (!service.environment || !Array.isArray(service.environment)) {
+        service.environment = [];
+      }
+      service.environment = service.environment.filter(
+        entry => !removeKeys.includes(entry.split('=')[0] || '')
+      );
+      Object.entries(values).forEach(([key, value]) => {
+        setOrReplaceEnvVar(service.environment as string[], key, value);
+      });
+      this.setDockerComposeConfig(dockerComposeConfig);
     },
     initializeStarterDefaults() {
       this.updateUserInterface(true);

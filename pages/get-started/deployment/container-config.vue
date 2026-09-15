@@ -47,7 +47,7 @@
         variant="tonal"
         color="primary"
         append-icon="mdi-arrow-right"
-        to="/get-started/deployment/access-control"
+        to="/get-started/deployment/observability"
         >Next</v-btn
       >
     </v-card-actions>

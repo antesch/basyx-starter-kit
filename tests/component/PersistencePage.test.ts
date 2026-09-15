@@ -68,6 +68,7 @@ describe('Persistence page', () => {
           'v-kbd': { template: '<kbd><slot /></kbd>' },
           'v-divider': { template: '<hr />' },
           'v-text-field': TextFieldStub,
+          'v-select': TextFieldStub,
           'v-number-input': NumberInputStub,
           'v-btn': { template: '<button @click="$emit(\'click\')"><slot /></button>' },
           'v-card-actions': { template: '<div><slot /></div>' },
@@ -81,6 +82,8 @@ describe('Persistence page', () => {
     await wrapper.find('input[data-label="POSTGRES_DBNAME"]').setValue('customdb');
     await wrapper.find('input[data-label="POSTGRES_USER"]').setValue('customuser');
     await wrapper.find('input[data-label="POSTGRES_PASSWORD"]').setValue('custompassword');
+    await wrapper.find('input[data-label="POSTGRES_SSLMODE"]').setValue('require');
+    await wrapper.find('input[data-label="POSTGRES_SEARCHPATH"]').setValue('basyx_schema');
 
     await wrapper
       .findAll('button')
@@ -101,5 +104,9 @@ describe('Persistence page', () => {
     expect(readEnvValue(aasEnv.environment || [], 'POSTGRES_PORT')).toBe('5544');
     expect(readEnvValue(configService.environment || [], 'POSTGRES_DBNAME')).toBe('customdb');
     expect(readEnvValue(configService.environment || [], 'POSTGRES_USER')).toBe('customuser');
+    expect(readEnvValue(aasEnv.environment || [], 'POSTGRES_SSLMODE')).toBe('require');
+    expect(readEnvValue(configService.environment || [], 'POSTGRES_SEARCHPATH')).toBe(
+      'basyx_schema'
+    );
   });
 });

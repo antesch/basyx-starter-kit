@@ -124,6 +124,59 @@
           persistent-hint
         />
       </v-col>
+      <v-col cols="12" md="4">
+        <v-select
+          v-model="postgresSslMode"
+          :items="postgresSslModes"
+          variant="solo-filled"
+          label="POSTGRES_SSLMODE"
+          hide-details="auto"
+          hint="Use verify-full for production TLS with hostname verification."
+          persistent-hint
+        />
+      </v-col>
+      <v-col cols="12" md="4">
+        <v-number-input
+          v-model="postgresConnectTimeoutSeconds"
+          variant="solo-filled"
+          label="POSTGRES_CONNECTTIMEOUTSECONDS"
+          :min="0"
+          hide-details="auto"
+          hint="0 uses the PostgreSQL driver default."
+          persistent-hint
+        />
+      </v-col>
+      <v-col cols="12" md="4">
+        <v-number-input
+          v-model="postgresConnectionIdleMinutes"
+          variant="solo-filled"
+          label="POSTGRES_CONNMAXIDLETIMEMINUTES"
+          :min="0"
+          hide-details="auto"
+          hint="0 disables idle-time recycling."
+          persistent-hint
+        />
+      </v-col>
+      <v-col cols="12" md="6">
+        <v-text-field
+          v-model="postgresSearchPath"
+          variant="solo-filled"
+          label="POSTGRES_SEARCHPATH"
+          hide-details="auto"
+          hint="Optional PostgreSQL schema search path."
+          persistent-hint
+        />
+      </v-col>
+      <v-col cols="12" md="6">
+        <v-text-field
+          v-model="postgresTimezone"
+          variant="solo-filled"
+          label="POSTGRES_TIMEZONE"
+          hide-details="auto"
+          hint="Optional session timezone, for example UTC."
+          persistent-hint
+        />
+      </v-col>
     </v-row>
 
     <v-btn class="mt-6 mb-2" block variant="tonal" @click="applyPersistenceSettings()">
@@ -134,7 +187,7 @@
     </v-btn>
 
     <v-card-actions class="px-0 mb-8">
-      <v-btn variant="tonal" prepend-icon="mdi-arrow-left" to="/get-started/application"
+      <v-btn variant="tonal" prepend-icon="mdi-arrow-left" to="/get-started/behaviour/runtime"
         >Back</v-btn
       >
       <v-spacer />
@@ -142,7 +195,7 @@
         variant="tonal"
         color="primary"
         append-icon="mdi-arrow-right"
-        to="/get-started/behaviour/eventing"
+        to="/get-started/behaviour/history"
       >
         Next
       </v-btn>
@@ -173,9 +226,14 @@ const DEFAULTS = {
   dbName: 'basyxTestDB',
   user: 'admin',
   password: 'admin123',
-  maxOpen: '500',
-  maxIdle: '500',
+  maxOpen: '50',
+  maxIdle: '25',
   maxLifetimeMinutes: '5',
+  maxIdleTimeMinutes: '0',
+  sslMode: 'disable',
+  connectTimeoutSeconds: '0',
+  searchPath: '',
+  timezone: '',
 };
 
 const appStore = useAppStore();
@@ -197,6 +255,12 @@ const showPostgresPassword = ref(false);
 const postgresMaxOpenConnections = ref(Number(DEFAULTS.maxOpen));
 const postgresMaxIdleConnections = ref(Number(DEFAULTS.maxIdle));
 const postgresConnectionLifetimeMinutes = ref(Number(DEFAULTS.maxLifetimeMinutes));
+const postgresConnectionIdleMinutes = ref(Number(DEFAULTS.maxIdleTimeMinutes));
+const postgresSslMode = ref(DEFAULTS.sslMode);
+const postgresConnectTimeoutSeconds = ref(Number(DEFAULTS.connectTimeoutSeconds));
+const postgresSearchPath = ref(DEFAULTS.searchPath);
+const postgresTimezone = ref(DEFAULTS.timezone);
+const postgresSslModes = ['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'];
 
 function getEnvVar(env: string[], key: string, fallback: string): string {
   const prefix = `${key}=`;
@@ -251,6 +315,35 @@ function syncFromCompose(): void {
       DEFAULTS.maxLifetimeMinutes
     )
   );
+  postgresConnectionIdleMinutes.value = Number(
+    getEnvVar(
+      aasEnvService.environment,
+      'POSTGRES_CONNMAXIDLETIMEMINUTES',
+      DEFAULTS.maxIdleTimeMinutes
+    )
+  );
+  postgresSslMode.value = getEnvVar(
+    aasEnvService.environment,
+    'POSTGRES_SSLMODE',
+    DEFAULTS.sslMode
+  );
+  postgresConnectTimeoutSeconds.value = Number(
+    getEnvVar(
+      aasEnvService.environment,
+      'POSTGRES_CONNECTTIMEOUTSECONDS',
+      DEFAULTS.connectTimeoutSeconds
+    )
+  );
+  postgresSearchPath.value = getEnvVar(
+    aasEnvService.environment,
+    'POSTGRES_SEARCHPATH',
+    DEFAULTS.searchPath
+  );
+  postgresTimezone.value = getEnvVar(
+    aasEnvService.environment,
+    'POSTGRES_TIMEZONE',
+    DEFAULTS.timezone
+  );
 }
 
 watch(
@@ -299,6 +392,11 @@ function applyPersistenceSettings(): void {
     maxLifetimeMinutes: String(
       postgresConnectionLifetimeMinutes.value || Number(DEFAULTS.maxLifetimeMinutes)
     ),
+    maxIdleTimeMinutes: String(Math.max(0, postgresConnectionIdleMinutes.value)),
+    sslMode: postgresSslMode.value,
+    connectTimeoutSeconds: String(Math.max(0, postgresConnectTimeoutSeconds.value)),
+    searchPath: postgresSearchPath.value.trim(),
+    timezone: postgresTimezone.value.trim(),
   };
 
   const envTargets = [aasEnvService.environment, configurationService.environment];
@@ -311,6 +409,11 @@ function applyPersistenceSettings(): void {
     setEnvVar(env, 'POSTGRES_MAXOPENCONNECTIONS', values.maxOpen);
     setEnvVar(env, 'POSTGRES_MAXIDLECONNECTIONS', values.maxIdle);
     setEnvVar(env, 'POSTGRES_CONNMAXLIFETIMEMINUTES', values.maxLifetimeMinutes);
+    setEnvVar(env, 'POSTGRES_CONNMAXIDLETIMEMINUTES', values.maxIdleTimeMinutes);
+    setEnvVar(env, 'POSTGRES_SSLMODE', values.sslMode);
+    setEnvVar(env, 'POSTGRES_CONNECTTIMEOUTSECONDS', values.connectTimeoutSeconds);
+    setEnvVar(env, 'POSTGRES_SEARCHPATH', values.searchPath);
+    setEnvVar(env, 'POSTGRES_TIMEZONE', values.timezone);
   });
 
   if (postgresService?.environment && !Array.isArray(postgresService.environment)) {
@@ -332,6 +435,11 @@ function resetToDefaults(): void {
   postgresMaxOpenConnections.value = Number(DEFAULTS.maxOpen);
   postgresMaxIdleConnections.value = Number(DEFAULTS.maxIdle);
   postgresConnectionLifetimeMinutes.value = Number(DEFAULTS.maxLifetimeMinutes);
+  postgresConnectionIdleMinutes.value = Number(DEFAULTS.maxIdleTimeMinutes);
+  postgresSslMode.value = DEFAULTS.sslMode;
+  postgresConnectTimeoutSeconds.value = Number(DEFAULTS.connectTimeoutSeconds);
+  postgresSearchPath.value = DEFAULTS.searchPath;
+  postgresTimezone.value = DEFAULTS.timezone;
   applyPersistenceSettings();
 }
 </script>

@@ -27,7 +27,7 @@
       <v-btn
         variant="tonal"
         prepend-icon="mdi-arrow-left"
-        to="/get-started/deployment/container-config"
+        to="/get-started/deployment/observability"
         >Back</v-btn
       >
       <v-spacer />
