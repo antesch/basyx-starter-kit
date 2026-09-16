@@ -3,11 +3,14 @@ export interface EnvironmentService {
 }
 
 export function readEnvironment(environment: string[] | undefined): Record<string, string> {
-  if (!environment) {
+  if (!Array.isArray(environment)) {
     return {};
   }
 
   return environment.reduce<Record<string, string>>((result, entry) => {
+    if (typeof entry !== 'string') {
+      return result;
+    }
     const separator = entry.indexOf('=');
     if (separator < 0) {
       return result;
@@ -21,13 +24,34 @@ export function readServiceEnvironment(
   composeValue: unknown,
   serviceName = 'aas-environment'
 ): Record<string, string> {
-  if (!composeValue || typeof composeValue !== 'object' || !('services' in composeValue)) {
+  if (!composeValue || typeof composeValue !== 'object' || Array.isArray(composeValue)) {
     return {};
   }
 
-  const services = composeValue.services as Record<string, EnvironmentService>;
-  const environment = services[serviceName]?.environment;
-  return Array.isArray(environment) ? readEnvironment(environment) : environment || {};
+  const services = (composeValue as Record<string, unknown>).services;
+  if (!services || typeof services !== 'object' || Array.isArray(services)) {
+    return {};
+  }
+
+  const service = (services as Record<string, unknown>)[serviceName];
+  if (!service || typeof service !== 'object' || Array.isArray(service)) {
+    return {};
+  }
+
+  const environment = (service as Record<string, unknown>).environment;
+  if (Array.isArray(environment)) {
+    return readEnvironment(environment);
+  }
+  if (!environment || typeof environment !== 'object' || Array.isArray(environment)) {
+    return {};
+  }
+
+  return Object.entries(environment).reduce<Record<string, string>>((result, [key, value]) => {
+    if (typeof value === 'string') {
+      result[key] = value;
+    }
+    return result;
+  }, {});
 }
 
 export function envBoolean(value: string | undefined, fallback = false): boolean {

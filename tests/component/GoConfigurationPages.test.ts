@@ -115,6 +115,41 @@ describe('BaSyx Go configuration pages', () => {
     expect(environment().BASYX_EVENTING_MQTT_BROKER).toBe('mqtt://events:1883');
   });
 
+  it('enables eventing for the REST feed without enabling the outbox', async () => {
+    const wrapper = mount(EventingPage, { global: { stubs: globalStubs } });
+
+    await wrapper.find('input[data-label="Enable the REST event feed"]').setValue(true);
+    await applyButton(wrapper, 'Apply Eventing Settings')?.trigger('click');
+    await nextTick();
+
+    expect(environment().BASYX_EVENTING_ENABLED).toBe('true');
+    expect(environment().BASYX_EVENTING_OUTBOX_ENABLED).toBe('false');
+    expect(environment().BASYX_EVENTING_FEED_ENABLED).toBe('true');
+  });
+
+  it('resets all broker settings instead of retaining the previous destination', async () => {
+    const wrapper = mount(EventingPage, { global: { stubs: globalStubs } });
+
+    await wrapper.find('input[data-label="Event sink"]').setValue('mqtt');
+    await nextTick();
+    await wrapper.find('input[data-label="MQTT broker URL"]').setValue('mqtt://old-events:1883');
+    await applyButton(wrapper, 'Apply Eventing Settings')?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find(button => button.text().includes('Reset To Defaults'))
+      ?.trigger('click');
+    await nextTick();
+
+    expect(environment().BASYX_EVENTING_ENABLED).toBe('false');
+    expect(environment().BASYX_EVENTING_MQTT_BROKER).toBeUndefined();
+
+    await wrapper.find('input[data-label="Event sink"]').setValue('mqtt');
+    await nextTick();
+    expect(
+      (wrapper.find('input[data-label="MQTT broker URL"]').element as HTMLInputElement).value
+    ).toBe('mqtt://broker:1883');
+  });
+
   it('configures structured logs and OTLP export', async () => {
     const wrapper = mount(ObservabilityPage, { global: { stubs: globalStubs } });
 

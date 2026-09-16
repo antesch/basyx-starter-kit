@@ -230,10 +230,12 @@ function syncFromCompose(): void {
 }
 
 function applySettings(): void {
+  const brokerEnabled = sink.value !== 'none';
+  const eventingEnabled = feedEnabled.value || brokerEnabled;
   const values: Record<string, string> = {
-    BASYX_EVENTING_ENABLED: String(sink.value !== 'none'),
+    BASYX_EVENTING_ENABLED: String(eventingEnabled),
     BASYX_EVENTING_FORMAT: 'cloudevents',
-    BASYX_EVENTING_OUTBOX_ENABLED: String(sink.value !== 'none'),
+    BASYX_EVENTING_OUTBOX_ENABLED: String(brokerEnabled),
     BASYX_EVENTING_TOPIC_PREFIX: topicPrefix.value.trim() || 'basyx',
     BASYX_EVENTING_FEED_ENABLED: String(feedEnabled.value),
   };
@@ -305,6 +307,16 @@ function resetToDefaults(): void {
   feedMaxPageSize.value = 100;
   sink.value = 'none';
   topicPrefix.value = 'basyx';
+  mqttBroker.value = 'mqtt://broker:1883';
+  mqttClientId.value = 'basyx-aas-environment';
+  mqttQos.value = 1;
+  mqttRetained.value = false;
+  kafkaBrokers.value = 'kafka:9092';
+  kafkaTopic.value = 'basyx.events';
+  kafkaClientId.value = 'basyx';
+  kafkaTls.value = false;
+  amqpBroker.value = 'amqp://rabbitmq:5672';
+  amqpAddress.value = '/queues/basyx.events';
   applySettings();
 }
 

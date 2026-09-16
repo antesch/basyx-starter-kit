@@ -52,6 +52,8 @@ interface DockerComposeService {
   environment?: Record<string, string> | string[];
 }
 
+type Environment = Record<string, string> | string[];
+
 export interface SerializableStarterState {
   registryIntegration: boolean;
   discoveryIntegration: boolean;
@@ -88,6 +90,14 @@ function isConfigObject(value: unknown): value is ConfigObject {
     typeof config.value === 'string' ||
     (typeof config.value === 'object' && config.value !== null);
   return hasValidName && hasValidValue;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return isRecord(value) && Object.values(value).every(item => typeof item === 'string');
 }
 
 function isContainerPortArray(value: unknown): value is ContainerPort[] {
@@ -134,11 +144,17 @@ function isBasyxConfigArray(value: unknown): value is BasyxConfigItem[] {
     Array.isArray(value) &&
     value.every(
       item =>
-        item &&
-        typeof item === 'object' &&
+        isRecord(item) &&
         typeof item.id === 'string' &&
         typeof item.title === 'string' &&
-        Array.isArray(item.children)
+        Array.isArray(item.children) &&
+        item.children.every(
+          (child: unknown) =>
+            isRecord(child) &&
+            typeof child.id === 'string' &&
+            typeof child.title === 'string' &&
+            typeof child.type === 'string'
+        )
     )
   );
 }
@@ -151,6 +167,145 @@ function setOrReplaceEnvVar(env: string[], key: string, value: string): void {
   } else {
     env.push(`${key}=${value}`);
   }
+}
+
+function setEnvironmentValue(environment: Environment, key: string, value: string): void {
+  if (Array.isArray(environment)) {
+    setOrReplaceEnvVar(environment, key, value);
+  } else {
+    environment[key] = value;
+  }
+}
+
+function removeEnvironmentKeys(environment: Environment, keys: string[]): Environment {
+  if (Array.isArray(environment)) {
+    return environment.filter(entry => !keys.includes(entry.split('=')[0] || ''));
+  }
+
+  return Object.fromEntries(Object.entries(environment).filter(([key]) => !keys.includes(key)));
+}
+
+function mergeEnvironmentDefaults(
+  defaults: Environment | undefined,
+  existing: Environment | undefined
+): Environment | undefined {
+  if (!existing) {
+    return defaults ? cloneSerializable(defaults) : undefined;
+  }
+  if (!defaults) {
+    return existing;
+  }
+
+  if (Array.isArray(existing)) {
+    const merged = [...existing];
+    const existingKeys = new Set(
+      existing.map(entry => entry.slice(0, entry.indexOf('='))).filter(Boolean)
+    );
+    const defaultEntries = Array.isArray(defaults)
+      ? defaults
+      : Object.entries(defaults).map(([key, value]) => `${key}=${value}`);
+    defaultEntries.forEach(entry => {
+      const separator = entry.indexOf('=');
+      const key = separator >= 0 ? entry.slice(0, separator) : entry;
+      if (key && !existingKeys.has(key)) {
+        merged.push(entry);
+        existingKeys.add(key);
+      }
+    });
+    return merged;
+  }
+
+  const merged = { ...existing };
+  const defaultEntries = Array.isArray(defaults) ? readEnvironmentEntries(defaults) : defaults;
+  Object.entries(defaultEntries).forEach(([key, value]) => {
+    if (!(key in merged)) {
+      merged[key] = value;
+    }
+  });
+  return merged;
+}
+
+function readEnvironmentEntries(environment: string[]): Record<string, string> {
+  return environment.reduce<Record<string, string>>((result, entry) => {
+    const separator = entry.indexOf('=');
+    if (separator >= 0) {
+      result[entry.slice(0, separator)] = entry.slice(separator + 1);
+    }
+    return result;
+  }, {});
+}
+
+function mergeDockerComposeConfig(defaults: ConfigObject, existing: ConfigObject): ConfigObject {
+  if (!isRecord(defaults.value) || !isRecord(existing.value)) {
+    return cloneSerializable(existing);
+  }
+
+  const defaultServices = isRecord(defaults.value.services) ? defaults.value.services : {};
+  const existingServices = isRecord(existing.value.services) ? existing.value.services : {};
+  const services: Record<string, unknown> = { ...existingServices };
+
+  Object.entries(defaultServices).forEach(([serviceName, defaultValue]) => {
+    if (!isRecord(defaultValue)) {
+      if (!(serviceName in services)) {
+        services[serviceName] = cloneSerializable(defaultValue);
+      }
+      return;
+    }
+
+    const existingValue = services[serviceName];
+    if (!isRecord(existingValue)) {
+      services[serviceName] = cloneSerializable(defaultValue);
+      return;
+    }
+
+    const mergedService: Record<string, unknown> = { ...defaultValue, ...existingValue };
+    if ('environment' in defaultValue || 'environment' in existingValue) {
+      const defaultEnvironment =
+        isStringRecord(defaultValue.environment) || Array.isArray(defaultValue.environment)
+          ? defaultValue.environment
+          : undefined;
+      const existingEnvironment =
+        isStringRecord(existingValue.environment) || Array.isArray(existingValue.environment)
+          ? existingValue.environment
+          : undefined;
+      mergedService.environment = mergeEnvironmentDefaults(defaultEnvironment, existingEnvironment);
+    }
+    services[serviceName] = mergedService;
+  });
+
+  return {
+    ...cloneSerializable(defaults),
+    ...cloneSerializable(existing),
+    value: {
+      ...defaults.value,
+      ...existing.value,
+      services,
+    },
+  };
+}
+
+function mergeBasyxConfigDefaults(
+  defaults: BasyxConfigItem[],
+  existing: BasyxConfigItem[]
+): BasyxConfigItem[] {
+  const defaultIds = new Set(defaults.map(item => item.id));
+  const mergedDefaults = defaults.map(defaultItem => {
+    const existingItem = existing.find(item => item.id === defaultItem.id);
+    if (!existingItem) {
+      return cloneSerializable(defaultItem);
+    }
+
+    const existingChildIds = new Set(existingItem.children.map(child => child.id));
+    return {
+      ...cloneSerializable(defaultItem),
+      ...cloneSerializable(existingItem),
+      children: [
+        ...cloneSerializable(existingItem.children),
+        ...cloneSerializable(defaultItem.children).filter(child => !existingChildIds.has(child.id)),
+      ],
+    };
+  });
+  return [...mergedDefaults, ...existing.filter(item => !defaultIds.has(item.id))];
 }
 
 function getContainerPortValue(
@@ -183,8 +338,8 @@ function setDockerComposeServicePort(
 
   if (serviceName === 'aas-environment') {
     service.ports[0] = `${port}:${port}`;
-    if (service.environment && Array.isArray(service.environment)) {
-      setOrReplaceEnvVar(service.environment, 'SERVER_PORT', String(port));
+    if (service.environment) {
+      setEnvironmentValue(service.environment, 'SERVER_PORT', String(port));
     }
     return;
   }
@@ -209,15 +364,13 @@ function setDockerComposeServiceContextPath(
   }
 
   if (serviceName === 'aas-environment') {
-    if (!service.environment || !Array.isArray(service.environment)) {
+    if (!service.environment) {
       service.environment = [];
     }
     if (contextPath) {
-      setOrReplaceEnvVar(service.environment, 'SERVER_CONTEXTPATH', contextPath);
+      setEnvironmentValue(service.environment, 'SERVER_CONTEXTPATH', contextPath);
     } else {
-      service.environment = service.environment.filter(
-        entry => !entry.startsWith('SERVER_CONTEXTPATH=')
-      );
+      service.environment = removeEnvironmentKeys(service.environment, ['SERVER_CONTEXTPATH']);
     }
   }
 
@@ -783,31 +936,29 @@ export const useAppStore = defineStore('app', {
       values: Record<string, string>,
       removeKeys: string[] = []
     ) {
-      if (
-        !this.dockerComposeConfig?.value ||
-        typeof this.dockerComposeConfig.value !== 'object' ||
-        !('services' in this.dockerComposeConfig.value)
-      ) {
+      const currentConfig = this.dockerComposeConfig;
+      const currentValue = currentConfig?.value;
+      if (!currentConfig || !isRecord(currentValue) || !isRecord(currentValue.services)) {
         return;
       }
 
-      const dockerComposeConfig = cloneSerializable(this.dockerComposeConfig);
-      const services = (
-        dockerComposeConfig.value as { services: Record<string, DockerComposeService> }
-      ).services;
+      const dockerComposeConfig = cloneSerializable(currentConfig);
+      const composeValue = dockerComposeConfig.value;
+      if (!isRecord(composeValue) || !isRecord(composeValue.services)) {
+        return;
+      }
+      const services = composeValue.services as Record<string, DockerComposeService>;
       const service = services[serviceName];
       if (!service) {
         return;
       }
 
-      if (!service.environment || !Array.isArray(service.environment)) {
+      if (!service.environment) {
         service.environment = [];
       }
-      service.environment = service.environment.filter(
-        entry => !removeKeys.includes(entry.split('=')[0] || '')
-      );
+      service.environment = removeEnvironmentKeys(service.environment, removeKeys);
       Object.entries(values).forEach(([key, value]) => {
-        setOrReplaceEnvVar(service.environment as string[], key, value);
+        setEnvironmentValue(service.environment as Environment, key, value);
       });
       this.setDockerComposeConfig(dockerComposeConfig);
     },
@@ -847,18 +998,18 @@ export const useAppStore = defineStore('app', {
         getContextPathValue(this.contextPathes, 'aas-environment')
       );
 
-      if (
-        this.dockerComposeConfig?.value &&
-        typeof this.dockerComposeConfig.value === 'object' &&
-        'services' in this.dockerComposeConfig.value
-      ) {
+      const currentComposeValue = this.dockerComposeConfig?.value;
+      if (isRecord(currentComposeValue) && isRecord(currentComposeValue.services)) {
         const dockerComposeConfig = { ...this.dockerComposeConfig };
-        const services = (dockerComposeConfig.value as { services: Record<string, unknown> })
-          .services;
-        const aasEnvironment = services['aas-environment'] as
-          { environment?: string[] } | undefined;
-        if (aasEnvironment?.environment && Array.isArray(aasEnvironment.environment)) {
-          setOrReplaceEnvVar(aasEnvironment.environment, 'GENERAL_EXTERNALURL', externalBaseUrl);
+        const services = currentComposeValue.services as Record<string, unknown>;
+        const aasEnvironment = services['aas-environment'];
+        if (isRecord(aasEnvironment)) {
+          const environment = aasEnvironment.environment;
+          if (isStringRecord(environment) || Array.isArray(environment)) {
+            setEnvironmentValue(environment, 'GENERAL_EXTERNALURL', externalBaseUrl);
+            aasEnvironment.environment = environment;
+            services['aas-environment'] = aasEnvironment;
+          }
           this.setDockerComposeConfig(dockerComposeConfig);
         }
       }
@@ -975,10 +1126,19 @@ export const useAppStore = defineStore('app', {
         this.contextPathes = cloneSerializable(data.contextPathes);
       }
       if (isBasyxConfigArray(data.basyxConfig)) {
-        this.basyxConfig = cloneSerializable(data.basyxConfig);
+        const defaults = initialState();
+        this.basyxConfig = mergeBasyxConfigDefaults(defaults.basyxConfig, data.basyxConfig);
       }
       if (isConfigObject(data.dockerComposeConfig)) {
-        this.dockerComposeConfig = cloneSerializable(data.dockerComposeConfig);
+        const defaultDockerComposeConfig = createDefaultDockerComposeConfig(
+          this.externalBaseUrl,
+          getContainerPortValue(this.containerPorts, 'aas-environment'),
+          getContextPathValue(this.contextPathes, 'aas-environment')
+        );
+        this.dockerComposeConfig = mergeDockerComposeConfig(
+          defaultDockerComposeConfig,
+          data.dockerComposeConfig
+        );
       }
       if (isConfigObject(data.basyxInfraConfig)) {
         this.basyxInfraConfig = cloneSerializable(data.basyxInfraConfig);
