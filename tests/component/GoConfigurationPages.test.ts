@@ -5,6 +5,7 @@ import { defineComponent, nextTick } from 'vue';
 import EventingPage from '@/pages/get-started/behaviour/eventing.vue';
 import HistoryPage from '@/pages/get-started/behaviour/history.vue';
 import RuntimePage from '@/pages/get-started/behaviour/runtime.vue';
+import AccessControlPage from '@/pages/get-started/deployment/access-control.vue';
 import ObservabilityPage from '@/pages/get-started/deployment/observability.vue';
 import { useAppStore } from '@/stores/app';
 import { readServiceEnvironment } from '@/utils/dockerEnvironment';
@@ -49,6 +50,9 @@ const globalStubs = {
   'v-expansion-panel': { template: '<section><slot /></section>' },
   'v-expansion-panel-text': { template: '<div><slot /></div>' },
   'v-text-field': InputStub,
+  'v-textarea': InputStub,
+  SchemaJsonEditor: InputStub,
+  'v-file-input': InputStub,
   'v-select': InputStub,
   'v-number-input': NumberStub,
   'v-switch': SwitchStub,
@@ -147,7 +151,7 @@ describe('BaSyx Go configuration pages', () => {
     await nextTick();
     expect(
       (wrapper.find('input[data-label="MQTT broker URL"]').element as HTMLInputElement).value
-    ).toBe('mqtt://broker:1883');
+    ).toBe('mqtt://mqtt:1883');
   });
 
   it('configures structured logs and OTLP export', async () => {
@@ -165,5 +169,101 @@ describe('BaSyx Go configuration pages', () => {
     expect(environment().LOGGING_FORMAT).toBe('json');
     expect(environment().OTEL_TRACES_EXPORTER).toBe('otlp');
     expect(environment().OTEL_EXPORTER_OTLP_ENDPOINT).toBe('http://collector:4318');
+  });
+
+  it('adds a matching local MQTT service and removes it in expert external mode', async () => {
+    const wrapper = mount(EventingPage, { global: { stubs: globalStubs } });
+    await wrapper.find('input[data-label="Event sink"]').setValue('mqtt');
+    await nextTick();
+    await applyButton(wrapper, 'Apply Eventing Settings')?.trigger('click');
+    await nextTick();
+    let services = (
+      useAppStore().getDockerComposeConfig?.value as { services: Record<string, unknown> }
+    ).services;
+    expect(services.mqtt).toBeDefined();
+    expect(environment().BASYX_EVENTING_MQTT_BROKER).toBe('mqtt://mqtt:1883');
+
+    await wrapper.find('input[data-label="Include a local broker container"]').setValue(false);
+    await wrapper.find('input[data-label="MQTT broker URL"]').setValue('mqtt://external:1883');
+    await applyButton(wrapper, 'Apply Eventing Settings')?.trigger('click');
+    await nextTick();
+    services = (
+      useAppStore().getDockerComposeConfig?.value as { services: Record<string, unknown> }
+    ).services;
+    expect(services.mqtt).toBeUndefined();
+    expect(environment().BASYX_EVENTING_MQTT_BROKER).toBe('mqtt://external:1883');
+  });
+
+  it('adds the local telemetry stack and supports an external collector', async () => {
+    const wrapper = mount(ObservabilityPage, { global: { stubs: globalStubs } });
+    await wrapper.find('input[data-label="OTEL_TRACES_EXPORTER"]').setValue('otlp');
+    await applyButton(wrapper, 'Apply Observability Settings')?.trigger('click');
+    await nextTick();
+    let services = (
+      useAppStore().getDockerComposeConfig?.value as { services: Record<string, unknown> }
+    ).services;
+    expect(services['otel-collector']).toBeDefined();
+    expect(services.prometheus).toBeDefined();
+    expect(services.tempo).toBeDefined();
+
+    await wrapper
+      .find('input[data-label="Include local observability containers"]')
+      .setValue(false);
+    await wrapper
+      .find('input[data-label="OTEL_EXPORTER_OTLP_ENDPOINT"]')
+      .setValue('https://otel.example.test:4318');
+    await applyButton(wrapper, 'Apply Observability Settings')?.trigger('click');
+    await nextTick();
+    services = (
+      useAppStore().getDockerComposeConfig?.value as { services: Record<string, unknown> }
+    ).services;
+    expect(services['otel-collector']).toBeUndefined();
+    expect(environment().OTEL_EXPORTER_OTLP_ENDPOINT).toBe('https://otel.example.test:4318');
+  });
+
+  it('adds local log collection when structured logging is selected', async () => {
+    const wrapper = mount(ObservabilityPage, { global: { stubs: globalStubs } });
+    await wrapper.find('input[data-label="LOGGING_FORMAT"]').setValue('json');
+    await applyButton(wrapper, 'Apply Observability Settings')?.trigger('click');
+    await nextTick();
+    const services = (
+      useAppStore().getDockerComposeConfig?.value as { services: Record<string, unknown> }
+    ).services;
+    expect(services.loki).toBeDefined();
+    expect(services.alloy).toBeDefined();
+    expect(services.grafana).toBeDefined();
+    expect(environment().LOGGING_FORMAT).toBe('json');
+  });
+
+  it('packages local Keycloak configuration or keeps an external OIDC connection', async () => {
+    const wrapper = mount(AccessControlPage, { global: { stubs: globalStubs } });
+    await wrapper.find('input[data-label="Enable access control"]').setValue(true);
+    await nextTick();
+    await applyButton(wrapper, 'Apply Access Control Settings')?.trigger('click');
+    await nextTick();
+    let services = (
+      useAppStore().getDockerComposeConfig?.value as { services: Record<string, unknown> }
+    ).services;
+    expect(services.keycloak).toBeDefined();
+    expect(environment().ABAC_ENABLED).toBe('true');
+    expect(environment().ABAC_MODELPATH).toBe('/security_env/access-rules.json');
+
+    await wrapper.find('input[data-label="Include local Keycloak container"]').setValue(false);
+    await wrapper
+      .find('input[data-label="OIDC issuer URL"]')
+      .setValue('https://identity.example.test/realms/basyx');
+    await applyButton(wrapper, 'Apply Access Control Settings')?.trigger('click');
+    await nextTick();
+    services = (
+      useAppStore().getDockerComposeConfig?.value as { services: Record<string, unknown> }
+    ).services;
+    expect(services.keycloak).toBeUndefined();
+    expect(environment().ABAC_ENABLED).toBe('true');
+    const infra = useAppStore().getBasyxInfraConfig?.value as {
+      infrastructures: { infra1: { security: { config: { issuer: string } } } };
+    };
+    expect(infra.infrastructures.infra1.security.config.issuer).toBe(
+      'https://identity.example.test/realms/basyx'
+    );
   });
 });

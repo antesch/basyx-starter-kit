@@ -41,6 +41,13 @@ const NumberInputStub = defineComponent({
     '<input class="number-field" :data-label="label" :value="modelValue" @input="$emit(\'update:modelValue\', Number($event.target.value))" />',
 });
 
+const SwitchStub = defineComponent({
+  props: { modelValue: { type: Boolean, default: false }, label: { type: String, default: '' } },
+  emits: ['update:modelValue'],
+  template:
+    '<input type="checkbox" :data-label="label" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+});
+
 function readEnvValue(environment: string[], key: string): string | undefined {
   const entry = environment.find(item => item.startsWith(`${key}=`));
   return entry ? entry.split('=').slice(1).join('=') : undefined;
@@ -67,9 +74,13 @@ describe('Persistence page', () => {
           'v-icon': { template: '<i />' },
           'v-kbd': { template: '<kbd><slot /></kbd>' },
           'v-divider': { template: '<hr />' },
+          'v-expansion-panels': { template: '<div><slot /></div>' },
+          'v-expansion-panel': { template: '<section><slot /></section>' },
+          'v-expansion-panel-text': { template: '<div><slot /></div>' },
           'v-text-field': TextFieldStub,
           'v-select': TextFieldStub,
           'v-number-input': NumberInputStub,
+          'v-switch': SwitchStub,
           'v-btn': { template: '<button @click="$emit(\'click\')"><slot /></button>' },
           'v-card-actions': { template: '<div><slot /></div>' },
           'v-spacer': { template: '<span />' },
@@ -77,6 +88,7 @@ describe('Persistence page', () => {
       },
     });
 
+    await wrapper.find('input[data-label="Include a local PostgreSQL container"]').setValue(false);
     await wrapper.find('input[data-label="POSTGRES_HOST"]').setValue('db-internal');
     await wrapper.find('input[data-label="POSTGRES_PORT"]').setValue('5544');
     await wrapper.find('input[data-label="POSTGRES_DBNAME"]').setValue('customdb');
@@ -108,5 +120,6 @@ describe('Persistence page', () => {
     expect(readEnvValue(configService.environment || [], 'POSTGRES_SEARCHPATH')).toBe(
       'basyx_schema'
     );
+    expect(compose.services.db).toBeUndefined();
   });
 });

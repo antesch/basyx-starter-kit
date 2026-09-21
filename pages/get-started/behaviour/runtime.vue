@@ -28,7 +28,12 @@
                 variant="solo-filled"
                 hint="permissive validates when possible; strict rejects unverifiable models."
                 persistent-hint
-              />
+              >
+                <template #append-inner
+                  ><HelpTooltip
+                    text="Permissive accepts models that cannot be fully verified; strict rejects them. Use strict after checking your AAS data."
+                /></template>
+              </v-select>
             </v-col>
             <v-col cols="12" md="6">
               <v-switch
@@ -44,7 +49,19 @@
                 hide-details
               />
             </v-col>
-            <v-col v-for="timeout in timeoutFields" :key="timeout.key" cols="12" sm="6" md="4">
+          </v-row>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+
+      <v-expansion-panel title="Advanced HTTP timeouts">
+        <v-expansion-panel-text>
+          <v-row density="compact">
+            <v-col
+              v-for="(timeout, index) in timeoutFields"
+              :key="timeout.key"
+              cols="12"
+              :md="index === timeoutFields.length - 1 ? 12 : 6"
+            >
               <v-number-input
                 v-model="timeout.model.value"
                 :label="timeout.key"
@@ -69,7 +86,12 @@
                 variant="solo-filled"
                 hint="Comma-separated origins. Use * only for local or intentionally public setups."
                 persistent-hint
-              />
+              >
+                <template #append-inner
+                  ><HelpTooltip
+                    text="Set exact browser origins in production. Wildcard origins are only suitable for local or deliberately public setups."
+                /></template>
+              </v-text-field>
             </v-col>
             <v-col cols="12" md="6">
               <v-text-field

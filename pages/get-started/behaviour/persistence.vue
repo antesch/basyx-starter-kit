@@ -10,6 +10,15 @@
       AAS Environment and Configuration Service environment variables.
     </p>
 
+    <v-switch
+      v-model="includeLocalDatabase"
+      color="primary"
+      label="Include a local PostgreSQL container"
+      hint="Turn off to use an existing PostgreSQL server. The connection fields below remain available."
+      persistent-hint
+      @update:model-value="onDatabaseModeChanged"
+    />
+
     <v-alert color="alertCard" class="mt-8 mb-8">
       <v-row align="center">
         <v-col cols="auto" class="pr-0">
@@ -46,6 +55,7 @@
           v-model="postgresHost"
           variant="solo-filled"
           label="POSTGRES_HOST"
+          :disabled="includeLocalDatabase"
           hide-details="auto"
           hint="Hostname of the PostgreSQL service (usually db)."
           persistent-hint
@@ -56,6 +66,7 @@
           v-model="postgresPort"
           variant="solo-filled"
           label="POSTGRES_PORT"
+          :disabled="includeLocalDatabase"
           hide-details="auto"
           hint="PostgreSQL port used by BaSyx components."
           persistent-hint
@@ -94,90 +105,99 @@
           @click:append-inner="showPostgresPassword = !showPostgresPassword"
         />
       </v-col>
-      <v-col cols="12" md="4">
-        <v-number-input
-          v-model="postgresMaxOpenConnections"
-          variant="solo-filled"
-          label="POSTGRES_MAXOPENCONNECTIONS"
-          hide-details="auto"
-          hint="Upper limit for concurrent open DB connections."
-          persistent-hint
-        />
-      </v-col>
-      <v-col cols="12" md="4">
-        <v-number-input
-          v-model="postgresMaxIdleConnections"
-          variant="solo-filled"
-          label="POSTGRES_MAXIDLECONNECTIONS"
-          hide-details="auto"
-          hint="How many idle connections stay pooled."
-          persistent-hint
-        />
-      </v-col>
-      <v-col cols="12" md="4">
-        <v-number-input
-          v-model="postgresConnectionLifetimeMinutes"
-          variant="solo-filled"
-          label="POSTGRES_CONNMAXLIFETIMEMINUTES"
-          hide-details="auto"
-          hint="Maximum connection lifetime in minutes."
-          persistent-hint
-        />
-      </v-col>
-      <v-col cols="12" md="4">
-        <v-select
-          v-model="postgresSslMode"
-          :items="postgresSslModes"
-          variant="solo-filled"
-          label="POSTGRES_SSLMODE"
-          hide-details="auto"
-          hint="Use verify-full for production TLS with hostname verification."
-          persistent-hint
-        />
-      </v-col>
-      <v-col cols="12" md="4">
-        <v-number-input
-          v-model="postgresConnectTimeoutSeconds"
-          variant="solo-filled"
-          label="POSTGRES_CONNECTTIMEOUTSECONDS"
-          :min="0"
-          hide-details="auto"
-          hint="0 uses the PostgreSQL driver default."
-          persistent-hint
-        />
-      </v-col>
-      <v-col cols="12" md="4">
-        <v-number-input
-          v-model="postgresConnectionIdleMinutes"
-          variant="solo-filled"
-          label="POSTGRES_CONNMAXIDLETIMEMINUTES"
-          :min="0"
-          hide-details="auto"
-          hint="0 disables idle-time recycling."
-          persistent-hint
-        />
-      </v-col>
-      <v-col cols="12" md="6">
-        <v-text-field
-          v-model="postgresSearchPath"
-          variant="solo-filled"
-          label="POSTGRES_SEARCHPATH"
-          hide-details="auto"
-          hint="Optional PostgreSQL schema search path."
-          persistent-hint
-        />
-      </v-col>
-      <v-col cols="12" md="6">
-        <v-text-field
-          v-model="postgresTimezone"
-          variant="solo-filled"
-          label="POSTGRES_TIMEZONE"
-          hide-details="auto"
-          hint="Optional session timezone, for example UTC."
-          persistent-hint
-        />
-      </v-col>
     </v-row>
+
+    <v-expansion-panels class="mt-6">
+      <v-expansion-panel title="Expert: connection pool, TLS, and schema">
+        <v-expansion-panel-text>
+          <v-row density="compact">
+            <v-col cols="12" md="4">
+              <v-number-input
+                v-model="postgresMaxOpenConnections"
+                variant="solo-filled"
+                label="POSTGRES_MAXOPENCONNECTIONS"
+                hide-details="auto"
+                hint="Upper limit for concurrent open DB connections."
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-number-input
+                v-model="postgresMaxIdleConnections"
+                variant="solo-filled"
+                label="POSTGRES_MAXIDLECONNECTIONS"
+                hide-details="auto"
+                hint="How many idle connections stay pooled."
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-number-input
+                v-model="postgresConnectionLifetimeMinutes"
+                variant="solo-filled"
+                label="POSTGRES_CONNMAXLIFETIMEMINUTES"
+                hide-details="auto"
+                hint="Maximum connection lifetime in minutes."
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="postgresSslMode"
+                :items="postgresSslModes"
+                variant="solo-filled"
+                label="POSTGRES_SSLMODE"
+                hide-details="auto"
+                hint="Use verify-full for production TLS with hostname verification."
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-number-input
+                v-model="postgresConnectTimeoutSeconds"
+                variant="solo-filled"
+                label="POSTGRES_CONNECTTIMEOUTSECONDS"
+                :min="0"
+                hide-details="auto"
+                hint="0 uses the PostgreSQL driver default."
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-number-input
+                v-model="postgresConnectionIdleMinutes"
+                variant="solo-filled"
+                label="POSTGRES_CONNMAXIDLETIMEMINUTES"
+                :min="0"
+                hide-details="auto"
+                hint="0 disables idle-time recycling."
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="postgresSearchPath"
+                variant="solo-filled"
+                label="POSTGRES_SEARCHPATH"
+                hide-details="auto"
+                hint="Optional PostgreSQL schema search path."
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="postgresTimezone"
+                variant="solo-filled"
+                label="POSTGRES_TIMEZONE"
+                hide-details="auto"
+                hint="Optional session timezone, for example UTC."
+                persistent-hint
+              />
+            </v-col>
+          </v-row>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
 
     <v-btn class="mt-6 mb-2" block variant="tonal" @click="applyPersistenceSettings()">
       Apply Persistence Settings
@@ -206,6 +226,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useAppStore } from '@/stores/app';
+import { localPostgresService } from '@/utils/localStacks';
 
 interface DockerService {
   environment?: Record<string, string> | string[];
@@ -247,6 +268,7 @@ const breadcrumbs = ref([
 const dockerComposeConfigObject = computed(() => appStore.getDockerComposeConfig);
 
 const postgresHost = ref(DEFAULTS.host);
+const includeLocalDatabase = ref(true);
 const postgresPort = ref(Number(DEFAULTS.port));
 const postgresDbName = ref(DEFAULTS.dbName);
 const postgresUser = ref(DEFAULTS.user);
@@ -261,6 +283,13 @@ const postgresConnectTimeoutSeconds = ref(Number(DEFAULTS.connectTimeoutSeconds)
 const postgresSearchPath = ref(DEFAULTS.searchPath);
 const postgresTimezone = ref(DEFAULTS.timezone);
 const postgresSslModes = ['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'];
+
+function onDatabaseModeChanged(value: boolean | null): void {
+  if (value) {
+    postgresHost.value = 'db';
+    postgresPort.value = 5432;
+  }
+}
 
 function getEnvVar(env: string[], key: string, fallback: string): string {
   const prefix = `${key}=`;
@@ -288,6 +317,7 @@ function syncFromCompose(): void {
   }
 
   const services = compose.services as Record<string, DockerService>;
+  includeLocalDatabase.value = Boolean(services.db);
   const aasEnvService = services['aas-environment'];
   if (!aasEnvService?.environment || !Array.isArray(aasEnvService.environment)) {
     return;
@@ -362,7 +392,9 @@ function applyPersistenceSettings(): void {
     return;
   }
 
-  const localDockerComposeConfig = { ...dockerComposeConfigObject.value };
+  const localDockerComposeConfig = JSON.parse(
+    JSON.stringify(dockerComposeConfigObject.value)
+  ) as typeof dockerComposeConfigObject.value;
   const dockerConfig = localDockerComposeConfig.value as {
     services: Record<string, DockerService>;
   };
@@ -382,8 +414,8 @@ function applyPersistenceSettings(): void {
   }
 
   const values = {
-    host: postgresHost.value.trim() || DEFAULTS.host,
-    port: String(postgresPort.value || Number(DEFAULTS.port)),
+    host: includeLocalDatabase.value ? 'db' : postgresHost.value.trim() || DEFAULTS.host,
+    port: includeLocalDatabase.value ? '5432' : String(postgresPort.value || Number(DEFAULTS.port)),
     dbName: postgresDbName.value.trim() || DEFAULTS.dbName,
     user: postgresUser.value.trim() || DEFAULTS.user,
     password: postgresPassword.value || DEFAULTS.password,
@@ -422,11 +454,52 @@ function applyPersistenceSettings(): void {
     postgresService.environment.POSTGRES_DB = values.dbName;
   }
 
+  if (includeLocalDatabase.value) {
+    if (!postgresService) {
+      services.db = localPostgresService(values.user, values.password, values.dbName);
+    }
+    (
+      configurationService as DockerService & { depends_on?: Record<string, { condition: string }> }
+    ).depends_on = {
+      ...((
+        configurationService as DockerService & {
+          depends_on?: Record<string, { condition: string }>;
+        }
+      ).depends_on || {}),
+      db: { condition: 'service_healthy' },
+    };
+  } else {
+    delete services.db;
+    const configWithDependencies = configurationService as DockerService & {
+      depends_on?: Record<string, { condition: string }>;
+    };
+    if (configWithDependencies.depends_on) {
+      configWithDependencies.depends_on = Object.fromEntries(
+        Object.entries(configWithDependencies.depends_on).filter(([name]) => name !== 'db')
+      );
+    }
+  }
+
+  const keycloak = services.keycloak as
+    (DockerService & { depends_on?: Record<string, { condition: string }> }) | undefined;
+  if (keycloak) {
+    keycloak.environment = {
+      ...(Array.isArray(keycloak.environment) ? {} : keycloak.environment),
+      KC_DB_URL: `jdbc:postgresql://${values.host}:${values.port}/${values.dbName}`,
+      KC_DB_USERNAME: values.user,
+      KC_DB_PASSWORD: values.password,
+    };
+    keycloak.depends_on = includeLocalDatabase.value
+      ? { db: { condition: 'service_healthy' } }
+      : {};
+  }
+
   localDockerComposeConfig.value = dockerConfig;
   appStore.setDockerComposeConfig(localDockerComposeConfig);
 }
 
 function resetToDefaults(): void {
+  includeLocalDatabase.value = true;
   postgresHost.value = DEFAULTS.host;
   postgresPort.value = Number(DEFAULTS.port);
   postgresDbName.value = DEFAULTS.dbName;

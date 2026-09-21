@@ -14,6 +14,7 @@ import {
   replaceExplicitUrlPort,
   replaceUrlPath,
 } from '@/utils/externalUrls';
+import { DEFAULT_POLICY, defaultTrustList } from '@/utils/securitySetup';
 
 interface ContainerPort {
   id: string;
@@ -272,6 +273,52 @@ function mergeDockerComposeConfig(defaults: ConfigObject, existing: ConfigObject
     }
     services[serviceName] = mergedService;
   });
+
+  // Shared links omit secrets. Restore only the fixed credentials of generated local
+  // services; external credentials must still be supplied by the user.
+  const db = services.db;
+  const dbEnvironment = isRecord(db) ? db.environment : undefined;
+  const dbEntries = Array.isArray(dbEnvironment)
+    ? readEnvironmentEntries(dbEnvironment)
+    : isStringRecord(dbEnvironment)
+      ? dbEnvironment
+      : {};
+  const keycloak = services.keycloak;
+  if (isRecord(keycloak) && isRecord(db) && dbEntries.POSTGRES_PASSWORD) {
+    services.keycloak = {
+      ...keycloak,
+      environment: mergeEnvironmentDefaults(
+        { KC_DB_PASSWORD: dbEntries.POSTGRES_PASSWORD },
+        isStringRecord(keycloak.environment) || Array.isArray(keycloak.environment)
+          ? keycloak.environment
+          : undefined
+      ),
+    };
+  }
+  const rabbitmq = services.rabbitmq;
+  if (isRecord(rabbitmq)) {
+    services.rabbitmq = {
+      ...rabbitmq,
+      environment: mergeEnvironmentDefaults(
+        { RABBITMQ_DEFAULT_PASS: 'basyx-demo' },
+        isStringRecord(rabbitmq.environment) || Array.isArray(rabbitmq.environment)
+          ? rabbitmq.environment
+          : undefined
+      ),
+    };
+    const aasEnvironment = services['aas-environment'];
+    if (isRecord(aasEnvironment)) {
+      services['aas-environment'] = {
+        ...aasEnvironment,
+        environment: mergeEnvironmentDefaults(
+          { BASYX_EVENTING_AMQP_PASSWORD: 'basyx-demo' },
+          isStringRecord(aasEnvironment.environment) || Array.isArray(aasEnvironment.environment)
+            ? aasEnvironment.environment
+            : undefined
+        ),
+      };
+    }
+  }
 
   return {
     ...cloneSerializable(defaults),
@@ -611,6 +658,8 @@ function initialState() {
     logoDark: undefined as File | undefined,
     telegrafConf: undefined as File | undefined,
     aasFiles: undefined as File[] | undefined,
+    accessPolicyJson: DEFAULT_POLICY,
+    trustListJson: defaultTrustList(),
 
     // editable docker settings
     containerPorts: [

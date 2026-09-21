@@ -1,6 +1,10 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { useAppStore } from '@/stores/app';
+import { decodeConfigHash, encodeConfigHash } from '@/utils/configPersistence';
 import { readServiceEnvironment } from '@/utils/dockerEnvironment';
+import { localBrokerServices } from '@/utils/localStacks';
+import { updateOptionalServices } from '@/utils/optionalServices';
+import { localKeycloakService } from '@/utils/securitySetup';
 
 describe('app store snapshot helpers', () => {
   beforeEach(() => {
@@ -110,5 +114,48 @@ describe('app store snapshot helpers', () => {
 
     const environment = readServiceEnvironment(store.getDockerComposeConfig?.value);
     expect(environment).toEqual({ KEEP: 'yes', ADDED: 'new' });
+  });
+
+  it('restores generated local service credentials after a secret-free shared link', () => {
+    const store = useAppStore();
+    store.initializeStarterDefaults();
+    updateOptionalServices(
+      {
+        ...localBrokerServices('amqp'),
+        ...localKeycloakService({
+          host: 'db',
+          port: '5432',
+          name: 'basyxTestDB',
+          user: 'admin',
+          password: 'admin123',
+          local: true,
+        }),
+      },
+      ['rabbitmq', 'keycloak']
+    );
+    store.updateServiceEnvironment('aas-environment', {
+      BASYX_EVENTING_AMQP_PASSWORD: 'basyx-demo',
+    });
+
+    const encoded = encodeConfigHash({
+      route: '/get-started/download',
+      state: store.createSerializableSnapshot(),
+    });
+    const decoded = decodeConfigHash(encoded);
+    expect(JSON.stringify(decoded.payload)).not.toContain('basyx-demo');
+    store.reset();
+    store.initializeStarterDefaults();
+    store.applySerializableSnapshot(decoded.payload?.state);
+
+    const services = (
+      store.getDockerComposeConfig?.value as {
+        services: Record<string, { environment?: Record<string, string> }>;
+      }
+    ).services;
+    expect(services.keycloak?.environment?.KC_DB_PASSWORD).toBe('admin123');
+    expect(services.rabbitmq?.environment?.RABBITMQ_DEFAULT_PASS).toBe('basyx-demo');
+    expect(
+      readServiceEnvironment(store.getDockerComposeConfig?.value).BASYX_EVENTING_AMQP_PASSWORD
+    ).toBe('basyx-demo');
   });
 });

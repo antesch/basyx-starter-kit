@@ -8,10 +8,10 @@
     </p>
 
     <v-alert color="alertCard" class="mb-8">
-      <div class="font-weight-medium text-header">Collector required for OTLP</div>
+      <div class="font-weight-medium text-header">Ready-to-run observability</div>
       <p class="text-subheader font-weight-medium mt-2 mb-0">
-        This Starter Kit does not deploy an OpenTelemetry Collector. Select <code>otlp</code> only
-        when the configured endpoint is reachable from the AAS Environment container.
+        Selecting OTLP can add a collector, Tempo, and Prometheus to the generated stack. Expert
+        users can connect an existing backend instead.
       </p>
     </v-alert>
 
@@ -24,6 +24,7 @@
           :items="logFormats"
           label="LOGGING_FORMAT"
           variant="solo-filled"
+          @update:model-value="onLoggingFormatSelected"
         />
       </v-col>
       <v-col cols="12" md="6">
@@ -35,6 +36,23 @@
         />
       </v-col>
     </v-row>
+    <v-switch
+      v-model="collectLogs"
+      color="primary"
+      label="Collect container logs with Loki and Alloy"
+      hint="Requires Docker socket access for Alloy. Leave off when an external log collector is used."
+      persistent-hint
+      @update:model-value="onLogCollectionSelected"
+    />
+
+    <v-switch
+      v-if="usesOtlp || collectLogs"
+      v-model="includeLocalStack"
+      color="primary"
+      label="Include local observability containers"
+      hint="Turn off to connect to existing telemetry and logging services."
+      persistent-hint
+    />
 
     <v-divider class="mt-8 mb-8" />
     <h2 class="text-header">OpenTelemetry Export</h2>
@@ -45,6 +63,7 @@
           :items="exporters"
           label="OTEL_TRACES_EXPORTER"
           variant="solo-filled"
+          @update:model-value="onExporterSelected"
         />
       </v-col>
       <v-col cols="12" md="6">
@@ -53,6 +72,7 @@
           :items="exporters"
           label="OTEL_METRICS_EXPORTER"
           variant="solo-filled"
+          @update:model-value="onExporterSelected"
         />
       </v-col>
       <template v-if="usesOtlp">
@@ -71,47 +91,56 @@
             :items="protocols"
             label="OTEL_EXPORTER_OTLP_PROTOCOL"
             variant="solo-filled"
+            @update:model-value="onProtocolSelected"
           />
         </v-col>
       </template>
-      <v-col cols="12" md="6">
-        <v-text-field
-          v-model="serviceName"
-          label="OTEL_SERVICE_NAME"
-          variant="solo-filled"
-          hint="Logical service name shown in the observability backend."
-          persistent-hint
-        />
-      </v-col>
-      <v-col cols="12" md="6">
-        <v-text-field
-          v-model="resourceAttributes"
-          label="OTEL_RESOURCE_ATTRIBUTES"
-          variant="solo-filled"
-          hint="Comma-separated key=value attributes, for example deployment.environment=local."
-          persistent-hint
-        />
-      </v-col>
-      <v-col cols="12" md="6">
-        <v-select
-          v-model="tracesSampler"
-          :items="samplers"
-          label="OTEL_TRACES_SAMPLER"
-          variant="solo-filled"
-        />
-      </v-col>
-      <v-col cols="12" md="6">
-        <v-number-input
-          v-if="tracesSampler === 'parentbased_traceidratio'"
-          v-model="tracesSamplerRatio"
-          label="OTEL_TRACES_SAMPLER_ARG"
-          :min="0"
-          :max="1"
-          :step="0.05"
-          variant="solo-filled"
-        />
-      </v-col>
     </v-row>
+    <v-expansion-panels v-if="tracesExporter !== 'none' || metricsExporter !== 'none'" class="mb-6">
+      <v-expansion-panel title="Expert: service identity and trace sampling">
+        <v-expansion-panel-text>
+          <v-row density="compact">
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="serviceName"
+                label="OTEL_SERVICE_NAME"
+                variant="solo-filled"
+                hint="Logical service name shown in the observability backend."
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="resourceAttributes"
+                label="OTEL_RESOURCE_ATTRIBUTES"
+                variant="solo-filled"
+                hint="Comma-separated key=value attributes, for example deployment.environment=local."
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-select
+                v-model="tracesSampler"
+                :items="samplers"
+                label="OTEL_TRACES_SAMPLER"
+                variant="solo-filled"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-number-input
+                v-if="tracesSampler === 'parentbased_traceidratio'"
+                v-model="tracesSamplerRatio"
+                label="OTEL_TRACES_SAMPLER_ARG"
+                :min="0"
+                :max="1"
+                :step="0.05"
+                variant="solo-filled"
+              />
+            </v-col>
+          </v-row>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
 
     <v-alert v-if="usesOtlp && !otlpEndpoint.trim()" type="error" variant="tonal" class="mb-6">
       An OTLP endpoint is required when either exporter uses OTLP.
@@ -153,6 +182,12 @@
 import { computed, ref, watch } from 'vue';
 import { useAppStore } from '@/stores/app';
 import { envNumber, readServiceEnvironment } from '@/utils/dockerEnvironment';
+import { localObservabilityServices } from '@/utils/localStacks';
+import {
+  getComposeServices,
+  setServiceDependency,
+  updateOptionalServices,
+} from '@/utils/optionalServices';
 
 defineOptions({ name: 'ObservabilityConfiguration' });
 
@@ -197,12 +232,17 @@ const serviceName = ref(DEFAULTS.serviceName);
 const resourceAttributes = ref(DEFAULTS.resourceAttributes);
 const tracesSampler = ref(DEFAULTS.tracesSampler);
 const tracesSamplerRatio = ref(DEFAULTS.tracesSamplerRatio);
+const includeLocalStack = ref(true);
+const collectLogs = ref(false);
 const usesOtlp = computed(
   () => tracesExporter.value === 'otlp' || metricsExporter.value === 'otlp'
 );
 
 function syncFromCompose(): void {
   const env = readServiceEnvironment(compose.value);
+  const services = getComposeServices();
+  includeLocalStack.value = Boolean(services?.['otel-collector'] || services?.loki);
+  collectLogs.value = Boolean(services?.loki);
   loggingFormat.value = env.LOGGING_FORMAT || DEFAULTS.loggingFormat;
   loggingLevel.value = env.LOGGING_LEVEL || DEFAULTS.loggingLevel;
   tracesExporter.value = env.OTEL_TRACES_EXPORTER || DEFAULTS.tracesExporter;
@@ -215,7 +255,38 @@ function syncFromCompose(): void {
   tracesSamplerRatio.value = envNumber(env.OTEL_TRACES_SAMPLER_ARG, DEFAULTS.tracesSamplerRatio);
 }
 
+function onExporterSelected(value: string): void {
+  if (value === 'otlp') {
+    includeLocalStack.value = true;
+    otlpEndpoint.value = 'http://otel-collector:4318';
+    otlpProtocol.value = 'http/protobuf';
+  }
+}
+
+function onLoggingFormatSelected(value: string): void {
+  if (value === 'json') {
+    collectLogs.value = true;
+    includeLocalStack.value = true;
+  }
+}
+
+function onLogCollectionSelected(value: boolean | null): void {
+  if (value) {
+    loggingFormat.value = 'json';
+    includeLocalStack.value = true;
+  }
+}
+
+function onProtocolSelected(value: string): void {
+  if (includeLocalStack.value) {
+    otlpEndpoint.value =
+      value === 'grpc' ? 'http://otel-collector:4317' : 'http://otel-collector:4318';
+  }
+}
+
 function applySettings(): void {
+  const deployTelemetry = usesOtlp.value && includeLocalStack.value;
+  const deployLogs = collectLogs.value && includeLocalStack.value;
   const values: Record<string, string> = {
     LOGGING_FORMAT: loggingFormat.value,
     LOGGING_LEVEL: loggingLevel.value,
@@ -245,6 +316,39 @@ function applySettings(): void {
 
   const removeKeys = optionalKeys.filter(key => !(key in values));
   appStore.updateServiceEnvironment('aas-environment', values, removeKeys);
+  updateOptionalServices(localObservabilityServices(deployTelemetry, deployLogs), [
+    'otel-collector',
+    'prometheus',
+    'tempo',
+    'loki',
+    'alloy',
+    'grafana',
+  ]);
+  setServiceDependency('aas-environment', 'otel-collector', deployTelemetry);
+  const config = appStore.getDockerComposeConfig;
+  if (config?.value && typeof config.value === 'object' && 'services' in config.value) {
+    const updated = JSON.parse(JSON.stringify(config)) as typeof config;
+    const services = (
+      updated.value as { services: Record<string, { labels?: Record<string, string> }> }
+    ).services;
+    for (const name of ['aas-environment', 'basyx_configuration']) {
+      const service = services[name];
+      if (!service) continue;
+      const labels = Object.fromEntries(
+        Object.entries(service.labels || {}).filter(
+          ([key]) =>
+            !key.startsWith('com.eclipse.basyx.observability.') &&
+            key !== 'com.eclipse.basyx.service_name'
+        )
+      );
+      if (deployLogs) {
+        labels['com.eclipse.basyx.observability.logs'] = 'true';
+        labels['com.eclipse.basyx.service_name'] = name;
+      }
+      service.labels = labels;
+    }
+    appStore.setDockerComposeConfig(updated);
+  }
 }
 
 function resetToDefaults(): void {
@@ -258,6 +362,8 @@ function resetToDefaults(): void {
   resourceAttributes.value = DEFAULTS.resourceAttributes;
   tracesSampler.value = DEFAULTS.tracesSampler;
   tracesSamplerRatio.value = DEFAULTS.tracesSamplerRatio;
+  includeLocalStack.value = false;
+  collectLogs.value = false;
   applySettings();
 }
 

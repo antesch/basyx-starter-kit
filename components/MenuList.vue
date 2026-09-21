@@ -28,7 +28,7 @@
         >Behaviour</v-list-subheader
       >
       <v-list-item
-        title="BaSyx Go Runtime"
+        title="BaSyx Runtime"
         to="/get-started/behaviour/runtime"
         :class="isActive('/get-started/behaviour/runtime') ? 'text-primary' : 'text-subheader'"
       />
@@ -87,7 +87,7 @@
         "
       />
       <v-list-item
-        title="Logging and OpenTelemetry"
+        title="Logging and Telemetry"
         to="/get-started/deployment/observability"
         :class="
           isActive('/get-started/deployment/observability') ? 'text-primary' : 'text-subheader'
