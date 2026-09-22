@@ -21,7 +21,7 @@
       hide-details
       class="my-4"
     />
-    <v-expansion-panels v-if="feedEnabled" class="mb-6">
+    <v-expansion-panels v-if="feedEnabled" class="setup-config-panels mb-6">
       <v-expansion-panel title="Advanced feed retention and paging">
         <v-expansion-panel-text>
           <v-row density="compact">
@@ -82,7 +82,7 @@
       @update:model-value="chooseBrokerMode"
     />
 
-    <v-expansion-panels v-if="sink !== 'none'" class="mb-6">
+    <v-expansion-panels v-if="sink !== 'none'" class="setup-config-panels mb-6">
       <v-expansion-panel title="Advanced broker settings">
         <v-expansion-panel-text>
           <v-row v-if="sink === 'mqtt'" density="compact">

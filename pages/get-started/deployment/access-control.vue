@@ -53,7 +53,7 @@
         The download includes a local realm and a one-time administrator password in its README.
         Keycloak is for development; use an appropriately secured identity provider in production.
       </v-alert>
-      <v-expansion-panels class="mb-6">
+      <v-expansion-panels class="setup-config-panels mb-6">
         <v-expansion-panel title="Expert OIDC and policy settings">
           <v-expansion-panel-text>
             <v-row density="compact">

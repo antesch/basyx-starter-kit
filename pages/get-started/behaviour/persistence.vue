@@ -107,7 +107,7 @@
       </v-col>
     </v-row>
 
-    <v-expansion-panels class="mt-6">
+    <v-expansion-panels class="setup-config-panels mt-6">
       <v-expansion-panel title="Expert: connection pool, TLS, and schema">
         <v-expansion-panel-text>
           <v-row density="compact">

@@ -20,7 +20,7 @@
     </v-alert>
 
     <ClientOnly>
-      <v-expansion-panels class="mt-8 mb-8">
+      <v-expansion-panels class="setup-config-panels mt-8 mb-8">
         <v-expansion-panel
           v-for="service in servicesForConfig"
           :key="service.id"

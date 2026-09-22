@@ -96,7 +96,10 @@
         </v-col>
       </template>
     </v-row>
-    <v-expansion-panels v-if="tracesExporter !== 'none' || metricsExporter !== 'none'" class="mb-6">
+    <v-expansion-panels
+      v-if="tracesExporter !== 'none' || metricsExporter !== 'none'"
+      class="setup-config-panels mb-6"
+    >
       <v-expansion-panel title="Expert: service identity and trace sampling">
         <v-expansion-panel-text>
           <v-row density="compact">

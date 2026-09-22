@@ -16,7 +16,7 @@
       </p>
     </v-alert>
 
-    <v-expansion-panels class="mb-8" multiple :model-value="[0]">
+    <v-expansion-panels class="setup-config-panels mb-8" multiple :model-value="[0]">
       <v-expansion-panel title="HTTP server and verification">
         <v-expansion-panel-text>
           <v-row density="compact" class="runtime-field-row">
