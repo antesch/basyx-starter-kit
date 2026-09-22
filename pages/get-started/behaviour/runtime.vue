@@ -19,7 +19,7 @@
     <v-expansion-panels class="mb-8" multiple :model-value="[0]">
       <v-expansion-panel title="HTTP server and verification">
         <v-expansion-panel-text>
-          <v-row density="compact">
+          <v-row density="compact" class="runtime-field-row">
             <v-col cols="12" md="6">
               <v-select
                 v-model="strictVerification"
@@ -35,7 +35,7 @@
                 /></template>
               </v-select>
             </v-col>
-            <v-col cols="12" md="6">
+            <v-col cols="12" md="6" class="runtime-field-stack">
               <v-switch
                 v-model="verificationEndpointAvailable"
                 color="primary"
@@ -55,7 +55,7 @@
 
       <v-expansion-panel title="Advanced HTTP timeouts">
         <v-expansion-panel-text>
-          <v-row density="compact">
+          <v-row density="compact" class="runtime-field-row">
             <v-col
               v-for="(timeout, index) in timeoutFields"
               :key="timeout.key"
@@ -78,7 +78,7 @@
 
       <v-expansion-panel title="CORS">
         <v-expansion-panel-text>
-          <v-row density="compact">
+          <v-row density="compact" class="runtime-field-row">
             <v-col cols="12">
               <v-text-field
                 v-model="corsOrigins"
@@ -125,8 +125,8 @@
 
       <v-expansion-panel title="Model and upload limits">
         <v-expansion-panel-text>
-          <v-row density="compact">
-            <v-col cols="12" md="6">
+          <v-row density="compact" class="runtime-field-row">
+            <v-col cols="12" md="6" class="runtime-field-stack">
               <v-switch
                 v-model="enableImplicitCasts"
                 color="primary"
@@ -166,7 +166,7 @@
                 persistent-hint
               />
             </v-col>
-            <v-col cols="12" md="6">
+            <v-col cols="12" md="6" class="runtime-field-stack">
               <v-number-input
                 v-model="bulkBatchLimit"
                 label="GENERAL_BULK_BATCH_LIMIT"
@@ -209,6 +209,7 @@
                 label="Maximum OPC metadata (MiB)"
                 :min="1"
                 variant="solo-filled"
+                hide-details="auto"
               />
             </v-col>
             <v-col cols="12" md="4">
@@ -217,6 +218,7 @@
                 label="Maximum expanded part (MiB)"
                 :min="1"
                 variant="solo-filled"
+                hide-details="auto"
               />
             </v-col>
             <v-col cols="12" md="4">
@@ -225,6 +227,7 @@
                 label="Maximum thumbnail (MiB)"
                 :min="1"
                 variant="solo-filled"
+                hide-details="auto"
               />
             </v-col>
           </v-row>
@@ -475,3 +478,15 @@ function resetToDefaults(): void {
 
 watch(compose, syncFromCompose, { immediate: true });
 </script>
+
+<style scoped>
+.runtime-field-row {
+  row-gap: 12px;
+}
+
+.runtime-field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+</style>
