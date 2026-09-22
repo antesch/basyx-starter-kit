@@ -236,6 +236,43 @@ function readEnvironmentEntries(environment: string[]): Record<string, string> {
   }, {});
 }
 
+const BASYX_GO_IMAGE_REPOSITORIES = {
+  'aas-environment': 'eclipsebasyx/aasenvironment-go',
+  basyx_configuration: 'eclipsebasyx/basyxconfigurationservice-go',
+} as const;
+
+type BasyxGoServiceName = keyof typeof BASYX_GO_IMAGE_REPOSITORIES;
+
+function getBasyxGoImageTag(
+  config: ConfigObject | undefined,
+  serviceName: BasyxGoServiceName
+): string {
+  if (!config || !isRecord(config.value) || !isRecord(config.value.services)) return '';
+  const service = config.value.services[serviceName];
+  if (!isRecord(service) || typeof service.image !== 'string') return '';
+  const separator = service.image.lastIndexOf(':');
+  return separator > service.image.lastIndexOf('/') ? service.image.slice(separator + 1) : '';
+}
+
+function syncBasyxGoImageTag(config: ConfigObject, source: BasyxGoServiceName): ConfigObject {
+  const updated = cloneSerializable(config);
+  if (!isRecord(updated.value) || !isRecord(updated.value.services)) return updated;
+  const services = updated.value.services;
+  const tag = getBasyxGoImageTag(updated, source);
+  if (!tag) return updated;
+
+  for (const [name, repository] of Object.entries(BASYX_GO_IMAGE_REPOSITORIES)) {
+    const service = services[name];
+    if (!isRecord(service)) continue;
+    const image = typeof service.image === 'string' ? service.image : '';
+    const separator = image.lastIndexOf(':');
+    const existingRepository =
+      separator > image.lastIndexOf('/') ? image.slice(0, separator) : image;
+    service.image = `${existingRepository || repository}:${tag}`;
+  }
+  return updated;
+}
+
 function mergeDockerComposeConfig(defaults: ConfigObject, existing: ConfigObject): ConfigObject {
   if (!isRecord(defaults.value) || !isRecord(existing.value)) {
     return cloneSerializable(existing);
@@ -356,15 +393,18 @@ function mergeDockerComposeConfig(defaults: ConfigObject, existing: ConfigObject
     }
   }
 
-  return {
-    ...cloneSerializable(defaults),
-    ...cloneSerializable(existing),
-    value: {
-      ...defaults.value,
-      ...existing.value,
-      services,
+  return syncBasyxGoImageTag(
+    {
+      ...cloneSerializable(defaults),
+      ...cloneSerializable(existing),
+      value: {
+        ...defaults.value,
+        ...existing.value,
+        services,
+      },
     },
-  };
+    'aas-environment'
+  );
 }
 
 function mergeBasyxConfigDefaults(
@@ -1011,7 +1051,24 @@ export const useAppStore = defineStore('app', {
     },
 
     setDockerComposeConfig(config: ConfigObject) {
-      this.dockerComposeConfig = config;
+      const previousAasTag = getBasyxGoImageTag(this.dockerComposeConfig, 'aas-environment');
+      const previousConfigTag = getBasyxGoImageTag(this.dockerComposeConfig, 'basyx_configuration');
+      const aasTag = getBasyxGoImageTag(config, 'aas-environment');
+      const configTag = getBasyxGoImageTag(config, 'basyx_configuration');
+      const changedConfigOnly = configTag !== previousConfigTag && aasTag === previousAasTag;
+      this.dockerComposeConfig = syncBasyxGoImageTag(
+        config,
+        changedConfigOnly ? 'basyx_configuration' : 'aas-environment'
+      );
+    },
+    setBasyxGoImageTag(serviceName: BasyxGoServiceName, tag: string) {
+      if (!this.dockerComposeConfig) return;
+      const config = cloneSerializable(this.dockerComposeConfig);
+      if (!isRecord(config.value) || !isRecord(config.value.services)) return;
+      const service = config.value.services[serviceName];
+      if (!isRecord(service) || !tag.trim()) return;
+      service.image = `${BASYX_GO_IMAGE_REPOSITORIES[serviceName]}:${tag.trim()}`;
+      this.dockerComposeConfig = syncBasyxGoImageTag(config, serviceName);
     },
     setBasyxInfraConfig(config: ConfigObject) {
       this.basyxInfraConfig = config;

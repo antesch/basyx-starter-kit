@@ -116,6 +116,42 @@ describe('app store snapshot helpers', () => {
     expect(environment).toEqual({ KEEP: 'yes', ADDED: 'new' });
   });
 
+  it('keeps the BaSyx Go image tags paired when restoring a mismatched snapshot', () => {
+    const store = useAppStore();
+    store.initializeStarterDefaults();
+    const snapshot = store.createSerializableSnapshot();
+    const compose = snapshot.dockerComposeConfig?.value as {
+      services: Record<string, { image?: string }>;
+    };
+    compose.services['aas-environment']!.image = 'eclipsebasyx/aasenvironment-go:SNAPSHOT';
+    compose.services.basyx_configuration!.image =
+      'eclipsebasyx/basyxconfigurationservice-go:latest';
+
+    store.applySerializableSnapshot(snapshot);
+    const services = (store.getDockerComposeConfig?.value as typeof compose).services;
+    expect(services['aas-environment']?.image).toBe('eclipsebasyx/aasenvironment-go:SNAPSHOT');
+    expect(services.basyx_configuration?.image).toBe(
+      'eclipsebasyx/basyxconfigurationservice-go:SNAPSHOT'
+    );
+  });
+
+  it('keeps tags paired when the Configuration Service image changes directly', () => {
+    const store = useAppStore();
+    store.initializeStarterDefaults();
+    const compose = JSON.parse(JSON.stringify(store.getDockerComposeConfig)) as {
+      value: { services: Record<string, { image?: string }> };
+    };
+    compose.value.services.basyx_configuration!.image =
+      'eclipsebasyx/basyxconfigurationservice-go:SNAPSHOT';
+    store.setDockerComposeConfig(compose);
+
+    const services = (store.getDockerComposeConfig?.value as typeof compose.value).services;
+    expect(services['aas-environment']?.image).toBe('eclipsebasyx/aasenvironment-go:SNAPSHOT');
+    expect(services.basyx_configuration?.image).toBe(
+      'eclipsebasyx/basyxconfigurationservice-go:SNAPSHOT'
+    );
+  });
+
   it('restores generated local service credentials after a secret-free shared link', () => {
     const store = useAppStore();
     store.initializeStarterDefaults();
