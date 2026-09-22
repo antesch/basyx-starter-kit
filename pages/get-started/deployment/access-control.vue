@@ -44,9 +44,11 @@
       <v-switch
         v-model="includeKeycloak"
         color="primary"
+        density="compact"
         label="Include local Keycloak container"
         hint="Turn off to use an existing OIDC provider. Configure its issuer and trust list below."
         persistent-hint
+        class="mb-6"
         @update:model-value="onKeycloakSelected"
       />
       <v-alert v-if="includeKeycloak" type="info" variant="tonal" class="mb-4">
