@@ -59,16 +59,10 @@
       "properties": {
         "GLOBAL": {
           "type": "string",
-          "enum": [
-            "LOCALNOW",
-            "UTCNOW",
-            "CLIENTNOW"
-          ]
+          "enum": ["LOCALNOW", "UTCNOW", "CLIENTNOW"]
         }
       },
-      "required": [
-        "GLOBAL"
-      ],
+      "required": ["GLOBAL"],
       "additionalProperties": false
     },
     "dateTimeOperand": {
@@ -86,19 +80,13 @@
       },
       "oneOf": [
         {
-          "required": [
-            "$dateTimeVal"
-          ]
+          "required": ["$dateTimeVal"]
         },
         {
-          "required": [
-            "$dateTimeCast"
-          ]
+          "required": ["$dateTimeCast"]
         },
         {
-          "required": [
-            "$attribute"
-          ]
+          "required": ["$attribute"]
         }
       ],
       "additionalProperties": false
@@ -110,9 +98,7 @@
           "$ref": "#/definitions/FieldIdentifier"
         }
       },
-      "required": [
-        "$field"
-      ],
+      "required": ["$field"],
       "additionalProperties": false
     },
     "numericalOperand": {
@@ -139,34 +125,22 @@
       },
       "oneOf": [
         {
-          "required": [
-            "$numVal"
-          ]
+          "required": ["$numVal"]
         },
         {
-          "required": [
-            "$numCast"
-          ]
+          "required": ["$numCast"]
         },
         {
-          "required": [
-            "$dayOfWeek"
-          ]
+          "required": ["$dayOfWeek"]
         },
         {
-          "required": [
-            "$dayOfMonth"
-          ]
+          "required": ["$dayOfMonth"]
         },
         {
-          "required": [
-            "$month"
-          ]
+          "required": ["$month"]
         },
         {
-          "required": [
-            "$year"
-          ]
+          "required": ["$year"]
         }
       ],
       "additionalProperties": false
@@ -183,14 +157,10 @@
       },
       "oneOf": [
         {
-          "required": [
-            "$hexVal"
-          ]
+          "required": ["$hexVal"]
         },
         {
-          "required": [
-            "$hexCast"
-          ]
+          "required": ["$hexCast"]
         }
       ],
       "additionalProperties": false
@@ -207,14 +177,10 @@
       },
       "oneOf": [
         {
-          "required": [
-            "$boolean"
-          ]
+          "required": ["$boolean"]
         },
         {
-          "required": [
-            "$boolCast"
-          ]
+          "required": ["$boolCast"]
         }
       ],
       "additionalProperties": false
@@ -238,14 +204,10 @@
       },
       "oneOf": [
         {
-          "required": [
-            "$timeVal"
-          ]
+          "required": ["$timeVal"]
         },
         {
-          "required": [
-            "$timeCast"
-          ]
+          "required": ["$timeCast"]
         }
       ],
       "additionalProperties": false
@@ -317,94 +279,58 @@
       },
       "oneOf": [
         {
-          "required": [
-            "$field"
-          ]
+          "required": ["$field"]
         },
         {
-          "required": [
-            "$strVal"
-          ]
+          "required": ["$strVal"]
         },
         {
-          "required": [
-            "$attribute"
-          ]
+          "required": ["$attribute"]
         },
         {
-          "required": [
-            "$numVal"
-          ]
+          "required": ["$numVal"]
         },
         {
-          "required": [
-            "$hexVal"
-          ]
+          "required": ["$hexVal"]
         },
         {
-          "required": [
-            "$dateTimeVal"
-          ]
+          "required": ["$dateTimeVal"]
         },
         {
-          "required": [
-            "$timeVal"
-          ]
+          "required": ["$timeVal"]
         },
         {
-          "required": [
-            "$boolean"
-          ]
+          "required": ["$boolean"]
         },
         {
-          "required": [
-            "$strCast"
-          ]
+          "required": ["$strCast"]
         },
         {
-          "required": [
-            "$numCast"
-          ]
+          "required": ["$numCast"]
         },
         {
-          "required": [
-            "$hexCast"
-          ]
+          "required": ["$hexCast"]
         },
         {
-          "required": [
-            "$boolCast"
-          ]
+          "required": ["$boolCast"]
         },
         {
-          "required": [
-            "$dateTimeCast"
-          ]
+          "required": ["$dateTimeCast"]
         },
         {
-          "required": [
-            "$timeCast"
-          ]
+          "required": ["$timeCast"]
         },
         {
-          "required": [
-            "$dayOfWeek"
-          ]
+          "required": ["$dayOfWeek"]
         },
         {
-          "required": [
-            "$dayOfMonth"
-          ]
+          "required": ["$dayOfMonth"]
         },
         {
-          "required": [
-            "$month"
-          ]
+          "required": ["$month"]
         },
         {
-          "required": [
-            "$year"
-          ]
+          "required": ["$year"]
         }
       ],
       "additionalProperties": false
@@ -427,24 +353,16 @@
       },
       "oneOf": [
         {
-          "required": [
-            "$field"
-          ]
+          "required": ["$field"]
         },
         {
-          "required": [
-            "$strVal"
-          ]
+          "required": ["$strVal"]
         },
         {
-          "required": [
-            "$strCast"
-          ]
+          "required": ["$strCast"]
         },
         {
-          "required": [
-            "$attribute"
-          ]
+          "required": ["$attribute"]
         }
       ],
       "additionalProperties": false
@@ -464,19 +382,13 @@
       },
       "oneOf": [
         {
-          "required": [
-            "$strVal"
-          ]
+          "required": ["$strVal"]
         },
         {
-          "required": [
-            "$strCast"
-          ]
+          "required": ["$strCast"]
         },
         {
-          "required": [
-            "$attribute"
-          ]
+          "required": ["$attribute"]
         }
       ],
       "additionalProperties": false
@@ -801,59 +713,37 @@
       },
       "oneOf": [
         {
-          "required": [
-            "$eq"
-          ]
+          "required": ["$eq"]
         },
         {
-          "required": [
-            "$ne"
-          ]
+          "required": ["$ne"]
         },
         {
-          "required": [
-            "$gt"
-          ]
+          "required": ["$gt"]
         },
         {
-          "required": [
-            "$ge"
-          ]
+          "required": ["$ge"]
         },
         {
-          "required": [
-            "$lt"
-          ]
+          "required": ["$lt"]
         },
         {
-          "required": [
-            "$le"
-          ]
+          "required": ["$le"]
         },
         {
-          "required": [
-            "$contains"
-          ]
+          "required": ["$contains"]
         },
         {
-          "required": [
-            "$starts-with"
-          ]
+          "required": ["$starts-with"]
         },
         {
-          "required": [
-            "$ends-with"
-          ]
+          "required": ["$ends-with"]
         },
         {
-          "required": [
-            "$regex"
-          ]
+          "required": ["$regex"]
         },
         {
-          "required": [
-            "$match"
-          ]
+          "required": ["$match"]
         }
       ],
       "additionalProperties": false
@@ -921,79 +811,49 @@
       },
       "oneOf": [
         {
-          "required": [
-            "$and"
-          ]
+          "required": ["$and"]
         },
         {
-          "required": [
-            "$or"
-          ]
+          "required": ["$or"]
         },
         {
-          "required": [
-            "$not"
-          ]
+          "required": ["$not"]
         },
         {
-          "required": [
-            "$eq"
-          ]
+          "required": ["$eq"]
         },
         {
-          "required": [
-            "$ne"
-          ]
+          "required": ["$ne"]
         },
         {
-          "required": [
-            "$gt"
-          ]
+          "required": ["$gt"]
         },
         {
-          "required": [
-            "$ge"
-          ]
+          "required": ["$ge"]
         },
         {
-          "required": [
-            "$lt"
-          ]
+          "required": ["$lt"]
         },
         {
-          "required": [
-            "$le"
-          ]
+          "required": ["$le"]
         },
         {
-          "required": [
-            "$contains"
-          ]
+          "required": ["$contains"]
         },
         {
-          "required": [
-            "$starts-with"
-          ]
+          "required": ["$starts-with"]
         },
         {
-          "required": [
-            "$ends-with"
-          ]
+          "required": ["$ends-with"]
         },
         {
-          "required": [
-            "$regex"
-          ]
+          "required": ["$regex"]
         },
         {
-          "required": [
-            "$boolean"
-          ]
+          "required": ["$boolean"]
         },
         {
-          "required": [
-            "$match"
-          ]
+          "required": ["$match"]
         }
       ],
       "additionalProperties": false
@@ -1001,19 +861,13 @@
     "attributeItem": {
       "oneOf": [
         {
-          "required": [
-            "CLAIM"
-          ]
+          "required": ["CLAIM"]
         },
         {
-          "required": [
-            "GLOBAL"
-          ]
+          "required": ["GLOBAL"]
         },
         {
-          "required": [
-            "REFERENCE"
-          ]
+          "required": ["REFERENCE"]
         }
       ],
       "properties": {
@@ -1022,12 +876,7 @@
         },
         "GLOBAL": {
           "type": "string",
-          "enum": [
-            "LOCALNOW",
-            "UTCNOW",
-            "CLIENTNOW",
-            "ANONYMOUS"
-          ]
+          "enum": ["LOCALNOW", "UTCNOW", "CLIENTNOW", "ANONYMOUS"]
         },
         "REFERENCE": {
           "$ref": "#/definitions/ReferenceIdentifier"
@@ -1038,29 +887,19 @@
     "objectItem": {
       "oneOf": [
         {
-          "required": [
-            "ROUTE"
-          ]
+          "required": ["ROUTE"]
         },
         {
-          "required": [
-            "IDENTIFIABLE"
-          ]
+          "required": ["IDENTIFIABLE"]
         },
         {
-          "required": [
-            "REFERABLE"
-          ]
+          "required": ["REFERABLE"]
         },
         {
-          "required": [
-            "FRAGMENT"
-          ]
+          "required": ["FRAGMENT"]
         },
         {
-          "required": [
-            "DESCRIPTOR"
-          ]
+          "required": ["DESCRIPTOR"]
         }
       ],
       "properties": {
@@ -1084,15 +923,7 @@
     },
     "rightsEnum": {
       "type": "string",
-      "enum": [
-        "CREATE",
-        "READ",
-        "UPDATE",
-        "DELETE",
-        "EXECUTE",
-        "VIEW",
-        "ALL"
-      ],
+      "enum": ["CREATE", "READ", "UPDATE", "DELETE", "EXECUTE", "VIEW", "ALL"],
       "additionalProperties": false
     },
     "ACL": {
@@ -1118,26 +949,16 @@
         },
         "ACCESS": {
           "type": "string",
-          "enum": [
-            "ALLOW",
-            "DISABLED"
-          ]
+          "enum": ["ALLOW", "DISABLED"]
         }
       },
-      "required": [
-        "RIGHTS",
-        "ACCESS"
-      ],
+      "required": ["RIGHTS", "ACCESS"],
       "anyOf": [
         {
-          "required": [
-            "ATTRIBUTES"
-          ]
+          "required": ["ATTRIBUTES"]
         },
         {
-          "required": [
-            "USEATTRIBUTES"
-          ]
+          "required": ["USEATTRIBUTES"]
         }
       ],
       "additionalProperties": false
@@ -1186,42 +1007,30 @@
         {
           "oneOf": [
             {
-              "required": [
-                "ACL"
-              ]
+              "required": ["ACL"]
             },
             {
-              "required": [
-                "USEACL"
-              ]
+              "required": ["USEACL"]
             }
           ]
         },
         {
           "anyOf": [
             {
-              "required": [
-                "OBJECTS"
-              ]
+              "required": ["OBJECTS"]
             },
             {
-              "required": [
-                "USEOBJECTS"
-              ]
+              "required": ["USEOBJECTS"]
             }
           ]
         },
         {
           "oneOf": [
             {
-              "required": [
-                "FORMULA"
-              ]
+              "required": ["FORMULA"]
             },
             {
-              "required": [
-                "USEFORMULA"
-              ]
+              "required": ["USEFORMULA"]
             }
           ]
         }
@@ -1241,19 +1050,13 @@
           "type": "string"
         }
       },
-      "required": [
-        "FRAGMENT"
-      ],
+      "required": ["FRAGMENT"],
       "oneOf": [
         {
-          "required": [
-            "CONDITION"
-          ]
+          "required": ["CONDITION"]
         },
         {
-          "required": [
-            "USEFORMULA"
-          ]
+          "required": ["USEFORMULA"]
         }
       ],
       "additionalProperties": false
@@ -1268,10 +1071,7 @@
           "$ref": "#/definitions/logicalExpression"
         }
       },
-      "required": [
-        "$fragment",
-        "$condition"
-      ],
+      "required": ["$fragment", "$condition"],
       "additionalProperties": false
     },
     "Query": {
@@ -1291,9 +1091,7 @@
           }
         }
       },
-      "required": [
-        "$condition"
-      ],
+      "required": ["$condition"],
       "additionalProperties": false
     },
     "AllAccessPermissionRules": {
@@ -1320,19 +1118,13 @@
                 }
               }
             },
-            "required": [
-              "name"
-            ],
+            "required": ["name"],
             "oneOf": [
               {
-                "required": [
-                  "attributes"
-                ]
+                "required": ["attributes"]
               },
               {
-                "required": [
-                  "USEATTRIBUTES"
-                ]
+                "required": ["USEATTRIBUTES"]
               }
             ],
             "additionalProperties": false
@@ -1350,10 +1142,7 @@
                 "$ref": "#/definitions/ACL"
               }
             },
-            "required": [
-              "name",
-              "acl"
-            ],
+            "required": ["name", "acl"],
             "additionalProperties": false
           }
         },
@@ -1378,19 +1167,13 @@
                 }
               }
             },
-            "required": [
-              "name"
-            ],
+            "required": ["name"],
             "oneOf": [
               {
-                "required": [
-                  "objects"
-                ]
+                "required": ["objects"]
               },
               {
-                "required": [
-                  "USEOBJECTS"
-                ]
+                "required": ["USEOBJECTS"]
               }
             ],
             "additionalProperties": false
@@ -1408,10 +1191,7 @@
                 "$ref": "#/definitions/logicalExpression"
               }
             },
-            "required": [
-              "name",
-              "formula"
-            ],
+            "required": ["name", "formula"],
             "additionalProperties": false
           }
         },
@@ -1422,9 +1202,7 @@
           }
         }
       },
-      "required": [
-        "rules"
-      ],
+      "required": ["rules"],
       "additionalProperties": false
     }
   }
