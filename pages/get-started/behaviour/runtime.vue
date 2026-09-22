@@ -125,8 +125,8 @@
 
       <v-expansion-panel title="Model and upload limits">
         <v-expansion-panel-text>
-          <v-row density="compact" class="runtime-field-row">
-            <v-col cols="12" md="6" class="runtime-field-stack">
+          <v-row density="compact" class="runtime-field-row runtime-limits-row">
+            <v-col cols="12" md="6" class="runtime-field-stack runtime-limit-main">
               <v-switch
                 v-model="enableImplicitCasts"
                 color="primary"
@@ -166,13 +166,14 @@
                 persistent-hint
               />
             </v-col>
-            <v-col cols="12" md="6" class="runtime-field-stack">
+            <v-col cols="12" md="6" class="runtime-field-stack runtime-limit-main">
               <v-number-input
                 v-model="bulkBatchLimit"
-                label="GENERAL_BULK_BATCH_LIMIT"
+                label="Bulk batch limit"
                 :min="1"
                 variant="solo-filled"
-                hint="Maximum rows per generated bulk SQL statement."
+                control-variant="stacked"
+                hint="Rows per generated bulk SQL statement."
                 persistent-hint
               />
               <v-number-input
@@ -180,53 +181,59 @@
                 label="Maximum upload size (MiB)"
                 :min="1"
                 variant="solo-filled"
-                hint="Converted to GENERAL_UPLOADMAXSIZEBYTES."
+                control-variant="stacked"
+                hint="Saved to Compose as bytes."
                 persistent-hint
               />
             </v-col>
             <v-col cols="12" md="6">
               <v-number-input
                 v-model="aasxMaxPartCount"
-                label="Maximum AASX part count"
+                label="AASX part count limit"
                 :min="1"
                 variant="solo-filled"
+                control-variant="stacked"
                 hide-details="auto"
               />
             </v-col>
             <v-col cols="12" md="6">
               <v-number-input
                 v-model="aasxMaxTotalMiB"
-                label="Maximum expanded AASX size (MiB)"
+                label="Expanded AASX limit (MiB)"
                 :min="1"
                 variant="solo-filled"
+                control-variant="stacked"
                 hint="Must be at least as large as the configured per-part limit."
                 persistent-hint
               />
             </v-col>
-            <v-col cols="12" md="4">
+            <v-col cols="12" md="4" class="runtime-limit-small">
               <v-number-input
                 v-model="aasxMetadataMiB"
-                label="Maximum OPC metadata (MiB)"
+                label="OPC metadata limit (MiB)"
                 :min="1"
                 variant="solo-filled"
+                control-variant="stacked"
                 hide-details="auto"
               />
             </v-col>
-            <v-col cols="12" md="4">
+            <v-col cols="12" md="4" class="runtime-limit-small">
               <v-number-input
                 v-model="aasxPartMiB"
-                label="Maximum expanded part (MiB)"
+                label="Expanded part limit (MiB)"
                 :min="1"
                 variant="solo-filled"
+                control-variant="stacked"
                 hide-details="auto"
               />
             </v-col>
-            <v-col cols="12" md="4">
+            <v-col cols="12" md="4" class="runtime-limit-small">
               <v-number-input
                 v-model="aasxThumbnailMiB"
-                label="Maximum thumbnail (MiB)"
+                label="Thumbnail limit (MiB)"
                 :min="1"
                 variant="solo-filled"
+                control-variant="stacked"
                 hide-details="auto"
               />
             </v-col>
@@ -489,5 +496,27 @@ watch(compose, syncFromCompose, { immediate: true });
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.runtime-field-stack > :deep(.v-number-input) {
+  flex: 0 0 auto;
+}
+
+.runtime-limits-row {
+  container-type: inline-size;
+}
+
+@container (max-width: 700px) {
+  .runtime-limits-row > .runtime-limit-small {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}
+
+@container (max-width: 600px) {
+  .runtime-limits-row > .runtime-limit-main {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
 }
 </style>
