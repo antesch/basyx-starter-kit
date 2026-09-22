@@ -79,6 +79,7 @@
       label="Include a local broker container"
       hint="Turn this off to connect to an existing broker instead. Configure its address below."
       persistent-hint
+      @update:model-value="chooseBrokerMode"
     />
 
     <v-expansion-panels v-if="sink !== 'none'" class="mb-6">
@@ -167,7 +168,8 @@
     </v-expansion-panels>
 
     <v-alert v-if="!brokerSettingsComplete" type="error" variant="tonal" class="mb-6">
-      Complete the required broker destination fields for the selected sink.
+      Complete the required broker fields. For authenticated external AMQP, enter the password;
+      clear the username if the broker allows anonymous access.
     </v-alert>
 
     <v-btn
@@ -262,7 +264,11 @@ const brokerSettingsComplete = computed(() => {
     return Boolean(kafkaBrokers.value.trim() && kafkaTopic.value.trim());
   }
   if (sink.value === 'amqp') {
-    return Boolean(amqpBroker.value.trim() && amqpAddress.value.trim());
+    return Boolean(
+      amqpBroker.value.trim() &&
+      amqpAddress.value.trim() &&
+      (includeLocalBroker.value || !amqpUsername.value.trim() || amqpPassword.value)
+    );
   }
   return true;
 });
@@ -291,8 +297,28 @@ function syncFromCompose(): void {
   kafkaTls.value = envBoolean(env.BASYX_EVENTING_KAFKA_TLS_ENABLED);
   amqpBroker.value = env.BASYX_EVENTING_AMQP_BROKER || 'amqp://rabbitmq:5672';
   amqpAddress.value = env.BASYX_EVENTING_AMQP_ADDRESS || '/queues/basyx.events';
-  amqpUsername.value = env.BASYX_EVENTING_AMQP_USERNAME || 'basyx';
-  amqpPassword.value = env.BASYX_EVENTING_AMQP_PASSWORD || 'basyx-demo';
+  amqpUsername.value =
+    env.BASYX_EVENTING_AMQP_USERNAME ?? (includeLocalBroker.value ? 'basyx' : '');
+  amqpPassword.value =
+    env.BASYX_EVENTING_AMQP_PASSWORD ?? (includeLocalBroker.value ? 'basyx-demo' : '');
+}
+
+function chooseBrokerMode(local: boolean | null): void {
+  if (local) {
+    chooseSink(sink.value);
+    return;
+  }
+  if (sink.value === 'mqtt' && mqttBroker.value === 'mqtt://mqtt:1883') {
+    mqttBroker.value = '';
+  }
+  if (sink.value === 'kafka' && kafkaBrokers.value === 'kafka:19092') {
+    kafkaBrokers.value = '';
+  }
+  if (sink.value === 'amqp') {
+    if (amqpBroker.value === 'amqp://rabbitmq:5672') amqpBroker.value = '';
+    amqpUsername.value = '';
+    amqpPassword.value = '';
+  }
 }
 
 function chooseSink(value: EventSink): void {
@@ -300,7 +326,11 @@ function chooseSink(value: EventSink): void {
   includeLocalBroker.value = true;
   if (value === 'mqtt') mqttBroker.value = 'mqtt://mqtt:1883';
   if (value === 'kafka') kafkaBrokers.value = 'kafka:19092';
-  if (value === 'amqp') amqpBroker.value = 'amqp://rabbitmq:5672';
+  if (value === 'amqp') {
+    amqpBroker.value = 'amqp://rabbitmq:5672';
+    amqpUsername.value = 'basyx';
+    amqpPassword.value = 'basyx-demo';
+  }
 }
 
 function applySettings(): void {

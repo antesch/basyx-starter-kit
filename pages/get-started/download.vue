@@ -151,6 +151,16 @@ async function downloadAsZip(): Promise<void> {
       'Enter the external PostgreSQL password on the Persistence Backend page before downloading.';
     return;
   }
+  if (
+    composeEnvironment.BASYX_EVENTING_SINKS?.split(',').includes('amqp') &&
+    !composeServices.rabbitmq &&
+    composeEnvironment.BASYX_EVENTING_AMQP_USERNAME?.trim() &&
+    !composeEnvironment.BASYX_EVENTING_AMQP_PASSWORD
+  ) {
+    downloadError.value =
+      'Enter the external AMQP password on the Eventing page before downloading, or clear the username for anonymous access.';
+    return;
+  }
   if (isTimeSeriesDataEnabled.value && !telegrafConfigStore.value) {
     downloadError.value =
       'Configure a valid Telegraf TOML file on the Time Series Data page before downloading.';

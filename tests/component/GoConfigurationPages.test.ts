@@ -8,6 +8,7 @@ import RuntimePage from '@/pages/get-started/behaviour/runtime.vue';
 import AccessControlPage from '@/pages/get-started/deployment/access-control.vue';
 import ObservabilityPage from '@/pages/get-started/deployment/observability.vue';
 import { useAppStore } from '@/stores/app';
+import { decodeConfigHash, encodeConfigHash } from '@/utils/configPersistence';
 import { readServiceEnvironment } from '@/utils/dockerEnvironment';
 
 vi.stubGlobal('useSeoMeta', vi.fn());
@@ -203,6 +204,72 @@ describe('BaSyx Go configuration pages', () => {
     ).services;
     expect(services.mqtt).toBeUndefined();
     expect(environment().BASYX_EVENTING_MQTT_BROKER).toBe('mqtt://external:1883');
+
+    await wrapper.find('input[data-label="Include a local broker container"]').setValue(true);
+    await applyButton(wrapper, 'Apply Eventing Settings')?.trigger('click');
+    expect(environment().BASYX_EVENTING_MQTT_BROKER).toBe('mqtt://mqtt:1883');
+  });
+
+  it('requires a redacted external AMQP password before applying or advancing', async () => {
+    const store = useAppStore();
+    store.updateServiceEnvironment('aas-environment', {
+      BASYX_EVENTING_ENABLED: 'true',
+      BASYX_EVENTING_SINKS: 'amqp',
+      BASYX_EVENTING_AMQP_BROKER: 'amqp://external:5672',
+      BASYX_EVENTING_AMQP_ADDRESS: '/queues/events',
+      BASYX_EVENTING_AMQP_USERNAME: 'external-user',
+      BASYX_EVENTING_AMQP_PASSWORD: 'external-secret',
+    });
+    const encoded = encodeConfigHash({
+      route: '/get-started/behaviour/eventing',
+      state: store.createSerializableSnapshot(),
+    });
+    store.reset();
+    store.initializeStarterDefaults();
+    store.applySerializableSnapshot(decodeConfigHash(encoded).payload?.state);
+
+    const wrapper = mount(EventingPage, { global: { stubs: globalStubs } });
+    await nextTick();
+    expect(
+      (wrapper.find('input[data-label="AMQP password"]').element as HTMLInputElement).value
+    ).toBe('');
+    expect(applyButton(wrapper, 'Apply Eventing Settings')?.attributes('disabled')).toBeDefined();
+    expect(applyButton(wrapper, 'Next')?.attributes('disabled')).toBeDefined();
+
+    await wrapper.find('input[data-label="AMQP password"]').setValue('new-secret');
+    await applyButton(wrapper, 'Apply Eventing Settings')?.trigger('click');
+    expect(environment().BASYX_EVENTING_AMQP_PASSWORD).toBe('new-secret');
+  });
+
+  it('clears local AMQP credentials when switching to an external broker', async () => {
+    let wrapper = mount(EventingPage, { global: { stubs: globalStubs } });
+    await wrapper.find('input[data-label="Event sink"]').setValue('amqp');
+    await applyButton(wrapper, 'Apply Eventing Settings')?.trigger('click');
+    wrapper.unmount();
+    wrapper = mount(EventingPage, { global: { stubs: globalStubs } });
+    await nextTick();
+    expect(
+      (wrapper.find('input[data-label="AMQP password"]').element as HTMLInputElement).value
+    ).toBe('basyx-demo');
+
+    await wrapper.find('input[data-label="Include a local broker container"]').setValue(false);
+    expect(
+      (wrapper.find('input[data-label="AMQP broker URL"]').element as HTMLInputElement).value
+    ).toBe('');
+    expect(
+      (wrapper.find('input[data-label="AMQP username"]').element as HTMLInputElement).value
+    ).toBe('');
+    expect(
+      (wrapper.find('input[data-label="AMQP password"]').element as HTMLInputElement).value
+    ).toBe('');
+
+    await wrapper.find('input[data-label="Include a local broker container"]').setValue(true);
+    expect(
+      (wrapper.find('input[data-label="AMQP broker URL"]').element as HTMLInputElement).value
+    ).toBe('amqp://rabbitmq:5672');
+    expect(
+      (wrapper.find('input[data-label="AMQP password"]').element as HTMLInputElement).value
+    ).toBe('basyx-demo');
   });
 
   it('adds the local telemetry stack and supports an external collector', async () => {
