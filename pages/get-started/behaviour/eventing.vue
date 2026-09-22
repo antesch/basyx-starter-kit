@@ -63,7 +63,7 @@
       variant="solo-filled"
       hint="Select none to disable broker publication."
       persistent-hint
-      class="mt-4"
+      class="mt-4 mb-6"
       @update:model-value="chooseSink"
     >
       <template #append-inner
