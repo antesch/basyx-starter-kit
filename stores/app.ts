@@ -244,8 +244,11 @@ function mergeDockerComposeConfig(defaults: ConfigObject, existing: ConfigObject
   const defaultServices = isRecord(defaults.value.services) ? defaults.value.services : {};
   const existingServices = isRecord(existing.value.services) ? existing.value.services : {};
   const services: Record<string, unknown> = { ...existingServices };
+  const externalDatabase =
+    !('db' in existingServices) && isRecord(existingServices['aas-environment']);
 
   Object.entries(defaultServices).forEach(([serviceName, defaultValue]) => {
+    if (serviceName === 'db' && externalDatabase) return;
     if (!isRecord(defaultValue)) {
       if (!(serviceName in services)) {
         services[serviceName] = cloneSerializable(defaultValue);
@@ -261,10 +264,13 @@ function mergeDockerComposeConfig(defaults: ConfigObject, existing: ConfigObject
 
     const mergedService: Record<string, unknown> = { ...defaultValue, ...existingValue };
     if ('environment' in defaultValue || 'environment' in existingValue) {
-      const defaultEnvironment =
+      let defaultEnvironment =
         isStringRecord(defaultValue.environment) || Array.isArray(defaultValue.environment)
           ? defaultValue.environment
           : undefined;
+      if (externalDatabase && defaultEnvironment) {
+        defaultEnvironment = removeEnvironmentKeys(defaultEnvironment, ['POSTGRES_PASSWORD']);
+      }
       const existingEnvironment =
         isStringRecord(existingValue.environment) || Array.isArray(existingValue.environment)
           ? existingValue.environment
@@ -273,6 +279,36 @@ function mergeDockerComposeConfig(defaults: ConfigObject, existing: ConfigObject
     }
     services[serviceName] = mergedService;
   });
+
+  if (externalDatabase) {
+    for (const serviceName of ['aas-environment', 'basyx_configuration']) {
+      const service = services[serviceName];
+      if (!isRecord(service)) continue;
+      const dependencies = isRecord(service.depends_on) ? { ...service.depends_on } : {};
+      delete dependencies.db;
+      services[serviceName] = { ...service, depends_on: dependencies };
+    }
+  }
+
+  if (isRecord(services.keycloak)) {
+    const keycloak = services.keycloak;
+    const networks = isRecord(keycloak.networks) ? keycloak.networks : {};
+    services.keycloak = {
+      ...keycloak,
+      networks: { ...networks, default: { aliases: ['keycloak.localhost'] } },
+    };
+    for (const serviceName of ['aas-environment', 'aas-ui']) {
+      const service = services[serviceName];
+      if (!isRecord(service) || !Array.isArray(service.extra_hosts)) continue;
+      const extraHosts = service.extra_hosts.filter(
+        host => typeof host !== 'string' || !host.startsWith('keycloak.localhost:')
+      );
+      const updated = { ...service };
+      if (extraHosts.length) updated.extra_hosts = extraHosts;
+      else delete updated.extra_hosts;
+      services[serviceName] = updated;
+    }
+  }
 
   // Shared links omit secrets. Restore only the fixed credentials of generated local
   // services; external credentials must still be supplied by the user.

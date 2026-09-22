@@ -132,7 +132,8 @@
         variant="tonal"
         color="primary"
         append-icon="mdi-flag-checkered"
-        to="/get-started/download"
+        :disabled="Boolean(policyError || trustListError)"
+        @click="finalizeSettings"
         >Finalize</v-btn
       >
     </v-card-actions>
@@ -190,7 +191,22 @@ const issuer = ref('http://keycloak.localhost:8080/realms/basyx');
 const clientId = ref('basyx-ui');
 const importMode = ref('if_missing');
 const managementApi = ref(false);
-const applied = ref(false);
+const appliedSignature = ref('');
+const settingsSignature = computed(() =>
+  JSON.stringify({
+    enabled: enabled.value,
+    includeKeycloak: includeKeycloak.value,
+    policyJson: policyJson.value,
+    trustListJson: trustListJson.value,
+    issuer: issuer.value,
+    clientId: clientId.value,
+    importMode: importMode.value,
+    managementApi: managementApi.value,
+  })
+);
+const applied = computed(
+  () => Boolean(appliedSignature.value) && appliedSignature.value === settingsSignature.value
+);
 const policyError = computed(() => (enabled.value ? validatePolicy(policyJson.value) : undefined));
 const trustListError = computed(() =>
   enabled.value ? validateTrustList(trustListJson.value) : undefined
@@ -229,7 +245,8 @@ function updateDefaultTrustList(newIssuer: string): void {
   try {
     const entries = JSON.parse(trustListJson.value) as { issuer: string; audience: string }[];
     if (entries.length === 1 && entries[0]?.audience === 'discovery-service') {
-      trustListJson.value = defaultTrustList(newIssuer);
+      entries[0].issuer = newIssuer;
+      trustListJson.value = JSON.stringify(entries, null, 2);
     }
   } catch {
     /* Keep user-entered JSON visible for correction. */
@@ -301,7 +318,6 @@ function applySettings(): void {
       item.extra_hosts = (item.extra_hosts || []).filter(
         host => !host.startsWith('keycloak.localhost:')
       );
-      if (local) item.extra_hosts.push('keycloak.localhost:host-gateway');
       if (!item.extra_hosts.length) delete item.extra_hosts;
     }
     appStore.setDockerComposeConfig(updated);
@@ -329,7 +345,13 @@ function applySettings(): void {
       : { type: 'none' };
     appStore.setBasyxInfraConfig(updated);
   }
-  applied.value = true;
+  appliedSignature.value = settingsSignature.value;
+}
+
+function finalizeSettings(): void {
+  if (policyError.value || trustListError.value) return;
+  applySettings();
+  navigateTo('/get-started/download');
 }
 
 watch(compose, syncFromCompose, { immediate: true });

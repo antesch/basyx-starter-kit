@@ -199,9 +199,18 @@
       </v-expansion-panel>
     </v-expansion-panels>
 
-    <v-btn class="mt-6 mb-2" block variant="tonal" @click="applyPersistenceSettings()">
+    <v-btn
+      class="mt-6 mb-2"
+      block
+      variant="tonal"
+      :disabled="!externalPasswordValid"
+      @click="applyPersistenceSettings()"
+    >
       Apply Persistence Settings
     </v-btn>
+    <v-alert v-if="!externalPasswordValid" type="error" variant="tonal" class="mb-6">
+      Enter the external PostgreSQL password before applying these settings.
+    </v-alert>
     <v-btn class="mb-8" block color="secondary" variant="text" @click="resetToDefaults()">
       Reset To Defaults
     </v-btn>
@@ -215,7 +224,8 @@
         variant="tonal"
         color="primary"
         append-icon="mdi-arrow-right"
-        to="/get-started/behaviour/history"
+        :disabled="!externalPasswordValid"
+        @click="goNext"
       >
         Next
       </v-btn>
@@ -273,6 +283,9 @@ const postgresPort = ref(Number(DEFAULTS.port));
 const postgresDbName = ref(DEFAULTS.dbName);
 const postgresUser = ref(DEFAULTS.user);
 const postgresPassword = ref(DEFAULTS.password);
+const externalPasswordValid = computed(
+  () => includeLocalDatabase.value || Boolean(postgresPassword.value.trim())
+);
 const showPostgresPassword = ref(false);
 const postgresMaxOpenConnections = ref(Number(DEFAULTS.maxOpen));
 const postgresMaxIdleConnections = ref(Number(DEFAULTS.maxIdle));
@@ -330,7 +343,7 @@ function syncFromCompose(): void {
   postgresPassword.value = getEnvVar(
     aasEnvService.environment,
     'POSTGRES_PASSWORD',
-    DEFAULTS.password
+    includeLocalDatabase.value ? DEFAULTS.password : ''
   );
   postgresMaxOpenConnections.value = Number(
     getEnvVar(aasEnvService.environment, 'POSTGRES_MAXOPENCONNECTIONS', DEFAULTS.maxOpen)
@@ -385,6 +398,7 @@ watch(
 );
 
 function applyPersistenceSettings(): void {
+  if (!externalPasswordValid.value) return;
   if (
     !dockerComposeConfigObject.value?.value ||
     typeof dockerComposeConfigObject.value.value !== 'object'
@@ -484,18 +498,35 @@ function applyPersistenceSettings(): void {
     (DockerService & { depends_on?: Record<string, { condition: string }> }) | undefined;
   if (keycloak) {
     keycloak.environment = {
-      ...(Array.isArray(keycloak.environment) ? {} : keycloak.environment),
+      ...(Array.isArray(keycloak.environment)
+        ? Object.fromEntries(
+            keycloak.environment
+              .filter(entry => entry.includes('='))
+              .map(entry => [
+                entry.slice(0, entry.indexOf('=')),
+                entry.slice(entry.indexOf('=') + 1),
+              ])
+          )
+        : keycloak.environment || {}),
       KC_DB_URL: `jdbc:postgresql://${values.host}:${values.port}/${values.dbName}`,
       KC_DB_USERNAME: values.user,
       KC_DB_PASSWORD: values.password,
     };
-    keycloak.depends_on = includeLocalDatabase.value
-      ? { db: { condition: 'service_healthy' } }
-      : {};
+    const dependencies = { ...(keycloak.depends_on || {}) };
+    if (includeLocalDatabase.value) dependencies.db = { condition: 'service_healthy' };
+    else delete dependencies.db;
+    if (Object.keys(dependencies).length) keycloak.depends_on = dependencies;
+    else delete keycloak.depends_on;
   }
 
   localDockerComposeConfig.value = dockerConfig;
   appStore.setDockerComposeConfig(localDockerComposeConfig);
+}
+
+function goNext(): void {
+  if (!externalPasswordValid.value) return;
+  applyPersistenceSettings();
+  navigateTo('/get-started/behaviour/history');
 }
 
 function resetToDefaults(): void {

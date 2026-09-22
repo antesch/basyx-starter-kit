@@ -158,4 +158,71 @@ describe('app store snapshot helpers', () => {
       readServiceEnvironment(store.getDockerComposeConfig?.value).BASYX_EVENTING_AMQP_PASSWORD
     ).toBe('basyx-demo');
   });
+
+  it('preserves external PostgreSQL mode and requires its password after sharing', () => {
+    const store = useAppStore();
+    store.initializeStarterDefaults();
+    const compose = JSON.parse(JSON.stringify(store.getDockerComposeConfig)) as {
+      value: {
+        services: Record<string, { environment?: string[]; depends_on?: Record<string, unknown> }>;
+      };
+    };
+    delete compose.value.services.db;
+    (compose.value.services as Record<string, unknown>).keycloak = localKeycloakService({
+      host: 'external-postgres',
+      port: '5432',
+      name: 'basyxTestDB',
+      user: 'admin',
+      password: 'private-external-password',
+      local: false,
+    }).keycloak;
+    (compose.value.services['aas-environment'] as { extra_hosts: string[] }).extra_hosts = [
+      'keycloak.localhost:host-gateway',
+    ];
+    for (const name of ['aas-environment', 'basyx_configuration']) {
+      const service = compose.value.services[name];
+      if (!service?.environment) throw new Error(`Missing ${name} environment`);
+      service.environment = service.environment.map(entry =>
+        entry.startsWith('POSTGRES_HOST=')
+          ? 'POSTGRES_HOST=external-postgres'
+          : entry.startsWith('POSTGRES_PASSWORD=')
+            ? 'POSTGRES_PASSWORD=private-external-password'
+            : entry
+      );
+      delete service.depends_on?.db;
+    }
+    store.setDockerComposeConfig(compose);
+
+    const encoded = encodeConfigHash({
+      route: '/get-started/download',
+      state: store.createSerializableSnapshot(),
+    });
+    expect(JSON.stringify(decodeConfigHash(encoded).payload)).not.toContain(
+      'private-external-password'
+    );
+    store.reset();
+    store.initializeStarterDefaults();
+    store.applySerializableSnapshot(decodeConfigHash(encoded).payload?.state);
+
+    const restored = store.getDockerComposeConfig?.value as typeof compose.value;
+    expect(restored.services.db).toBeUndefined();
+    for (const name of ['aas-environment', 'basyx_configuration']) {
+      expect(restored.services[name]?.environment).toContain('POSTGRES_HOST=external-postgres');
+      expect(
+        restored.services[name]?.environment?.some(entry => entry.startsWith('POSTGRES_PASSWORD='))
+      ).toBe(false);
+      expect(restored.services[name]?.depends_on?.db).toBeUndefined();
+    }
+    const services = restored.services as Record<
+      string,
+      {
+        extra_hosts?: string[];
+        networks?: Record<string, unknown>;
+        environment?: Record<string, string>;
+      }
+    >;
+    expect(services['aas-environment']?.extra_hosts).toBeUndefined();
+    expect(services.keycloak?.networks).toEqual({ default: { aliases: ['keycloak.localhost'] } });
+    expect(services.keycloak?.environment).not.toHaveProperty('KC_DB_PASSWORD');
+  });
 });

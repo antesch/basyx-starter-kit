@@ -90,6 +90,7 @@ describe('generated local stacks', () => {
     expect(service?.environment).toMatchObject({
       KC_DB_URL: 'jdbc:postgresql://external-db:5544/basyx',
     });
+    expect(service?.networks).toEqual({ default: { aliases: ['keycloak.localhost'] } });
   });
 
   it('packages optional files and omits policy content from share snapshots', async () => {

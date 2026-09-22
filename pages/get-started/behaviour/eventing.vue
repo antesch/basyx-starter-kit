@@ -192,7 +192,8 @@
         variant="tonal"
         color="primary"
         append-icon="mdi-arrow-right"
-        to="/get-started/behaviour/time-series"
+        :disabled="!brokerSettingsComplete"
+        @click="goNext"
         >Next</v-btn
       >
     </v-card-actions>
@@ -394,6 +395,12 @@ function applySettings(): void {
     );
   }
   appStore.updateMQTT(sink.value === 'mqtt');
+}
+
+function goNext(): void {
+  if (!brokerSettingsComplete.value) return;
+  applySettings();
+  navigateTo('/get-started/behaviour/time-series');
 }
 
 function resetToDefaults(): void {

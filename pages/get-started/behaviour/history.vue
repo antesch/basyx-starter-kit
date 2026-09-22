@@ -158,7 +158,8 @@
         variant="tonal"
         color="primary"
         append-icon="mdi-arrow-right"
-        to="/get-started/behaviour/eventing"
+        :disabled="!evidenceComplete"
+        @click="goNext"
         >Next</v-btn
       >
     </v-card-actions>
@@ -299,6 +300,12 @@ function applySettings(): void {
     values,
     evidenceEnabled.value ? [] : evidenceKeys
   );
+}
+
+function goNext(): void {
+  if (!evidenceComplete.value) return;
+  applySettings();
+  navigateTo('/get-started/behaviour/eventing');
 }
 
 function resetToDefaults(): void {

@@ -144,6 +144,13 @@ function createReadme(): void {
 
 async function downloadAsZip(): Promise<void> {
   downloadError.value = '';
+  const composeServices = getComposeServices() || {};
+  const composeEnvironment = readServiceEnvironment(appStore.getDockerComposeConfig?.value);
+  if (!composeServices.db && !composeEnvironment.POSTGRES_PASSWORD?.trim()) {
+    downloadError.value =
+      'Enter the external PostgreSQL password on the Persistence Backend page before downloading.';
+    return;
+  }
   if (isTimeSeriesDataEnabled.value && !telegrafConfigStore.value) {
     downloadError.value =
       'Configure a valid Telegraf TOML file on the Time Series Data page before downloading.';

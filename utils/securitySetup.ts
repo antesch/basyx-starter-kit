@@ -64,6 +64,7 @@ export function localKeycloakService(database: {
         KC_HOSTNAME_STRICT_BACKCHANNEL: 'false',
       },
       ports: ['127.0.0.1:8080:8080'],
+      networks: { default: { aliases: ['keycloak.localhost'] } },
       volumes: ['./keycloak/realm:/opt/keycloak/data/import:ro'],
       ...(database.local ? { depends_on: { db: { condition: 'service_healthy' } } } : {}),
       restart: 'unless-stopped',

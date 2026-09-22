@@ -11,6 +11,7 @@ import { useAppStore } from '@/stores/app';
 import { readServiceEnvironment } from '@/utils/dockerEnvironment';
 
 vi.stubGlobal('useSeoMeta', vi.fn());
+vi.stubGlobal('navigateTo', vi.fn());
 
 const InputStub = defineComponent({
   props: {
@@ -74,6 +75,7 @@ describe('BaSyx Go configuration pages', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     useAppStore().initializeStarterDefaults();
+    vi.mocked(navigateTo).mockClear();
   });
 
   it('writes runtime and API settings to the AAS Environment', async () => {
@@ -87,6 +89,15 @@ describe('BaSyx Go configuration pages', () => {
     expect(environment().SERVER_READ_TIMEOUT_SECONDS).toBe('900');
     expect(environment().GENERAL_UPLOADMAXSIZEBYTES).toBe(String(256 * 1024 * 1024));
     expect(environment().CORS_ALLOWCREDENTIALS).toBe('true');
+  });
+
+  it('applies pending runtime changes when advancing to the next page', async () => {
+    const wrapper = mount(RuntimePage, { global: { stubs: globalStubs } });
+    await wrapper.find('input[data-label="SERVER_READ_TIMEOUT_SECONDS"]').setValue('720');
+    await applyButton(wrapper, 'Next')?.trigger('click');
+
+    expect(environment().SERVER_READ_TIMEOUT_SECONDS).toBe('720');
+    expect(navigateTo).toHaveBeenCalledWith('/get-started/behaviour/persistence');
   });
 
   it('enables audit history with a guarded PostgreSQL history store', async () => {
@@ -221,6 +232,28 @@ describe('BaSyx Go configuration pages', () => {
     expect(environment().OTEL_EXPORTER_OTLP_ENDPOINT).toBe('https://otel.example.test:4318');
   });
 
+  it('keeps an external OTLP endpoint when another exporter is enabled', async () => {
+    const wrapper = mount(ObservabilityPage, { global: { stubs: globalStubs } });
+    await wrapper.find('input[data-label="OTEL_TRACES_EXPORTER"]').setValue('otlp');
+    await nextTick();
+    await wrapper
+      .find('input[data-label="Include local observability containers"]')
+      .setValue(false);
+    await wrapper
+      .find('input[data-label="OTEL_EXPORTER_OTLP_ENDPOINT"]')
+      .setValue('https://external-otel.example.test:4318');
+    await wrapper.find('input[data-label="OTEL_METRICS_EXPORTER"]').setValue('otlp');
+    await applyButton(wrapper, 'Apply Observability Settings')?.trigger('click');
+
+    expect(environment().OTEL_EXPORTER_OTLP_ENDPOINT).toBe(
+      'https://external-otel.example.test:4318'
+    );
+    const services = (
+      useAppStore().getDockerComposeConfig?.value as { services: Record<string, unknown> }
+    ).services;
+    expect(services['otel-collector']).toBeUndefined();
+  });
+
   it('adds local log collection when structured logging is selected', async () => {
     const wrapper = mount(ObservabilityPage, { global: { stubs: globalStubs } });
     await wrapper.find('input[data-label="LOGGING_FORMAT"]').setValue('json');
@@ -245,6 +278,12 @@ describe('BaSyx Go configuration pages', () => {
       useAppStore().getDockerComposeConfig?.value as { services: Record<string, unknown> }
     ).services;
     expect(services.keycloak).toBeDefined();
+    expect(services.keycloak).toMatchObject({
+      networks: { default: { aliases: ['keycloak.localhost'] } },
+    });
+    expect(services['aas-environment']).not.toMatchObject({
+      extra_hosts: ['keycloak.localhost:host-gateway'],
+    });
     expect(environment().ABAC_ENABLED).toBe('true');
     expect(environment().ABAC_MODELPATH).toBe('/security_env/access-rules.json');
 
@@ -265,5 +304,47 @@ describe('BaSyx Go configuration pages', () => {
     expect(infra.infrastructures.infra1.security.config.issuer).toBe(
       'https://identity.example.test/realms/basyx'
     );
+  });
+
+  it('applies access control before finalizing and keeps trust-list customizations', async () => {
+    const wrapper = mount(AccessControlPage, { global: { stubs: globalStubs } });
+    await wrapper.find('input[data-label="Enable access control"]').setValue(true);
+    await nextTick();
+    await wrapper.find('input[data-label="Include local Keycloak container"]').setValue(false);
+    const trustList = [
+      {
+        issuer: 'http://keycloak.localhost:8080/realms/basyx',
+        audience: 'discovery-service',
+        scopes: ['custom-scope'],
+      },
+    ];
+    await wrapper
+      .find('input[data-label="OIDC trust-list JSON"]')
+      .setValue(JSON.stringify(trustList));
+    await wrapper
+      .find('input[data-label="OIDC issuer URL"]')
+      .setValue('https://id.example.test/realms/basyx');
+    await applyButton(wrapper, 'Finalize')?.trigger('click');
+
+    const store = useAppStore();
+    expect(environment().ABAC_ENABLED).toBe('true');
+    expect(JSON.parse(store.trustListJson)).toEqual([
+      { ...trustList[0], issuer: 'https://id.example.test/realms/basyx' },
+    ]);
+    expect(navigateTo).toHaveBeenCalledWith('/get-started/download');
+  });
+
+  it('clears the applied notice after edits and blocks invalid access policies at Finalize', async () => {
+    const wrapper = mount(AccessControlPage, { global: { stubs: globalStubs } });
+    await wrapper.find('input[data-label="Enable access control"]').setValue(true);
+    await applyButton(wrapper, 'Apply Access Control Settings')?.trigger('click');
+    await nextTick();
+    expect(wrapper.text()).toContain('Access control settings applied.');
+
+    await wrapper.find('input[data-label="Access policy JSON"]').setValue('{');
+    await nextTick();
+    expect(wrapper.text()).not.toContain('Access control settings applied.');
+    await applyButton(wrapper, 'Finalize')?.trigger('click');
+    expect(navigateTo).not.toHaveBeenCalled();
   });
 });

@@ -245,11 +245,7 @@
         >Back</v-btn
       >
       <v-spacer />
-      <v-btn
-        variant="tonal"
-        color="primary"
-        append-icon="mdi-arrow-right"
-        to="/get-started/behaviour/persistence"
+      <v-btn variant="tonal" color="primary" append-icon="mdi-arrow-right" @click="goNext"
         >Next</v-btn
       >
     </v-card-actions>
@@ -445,6 +441,11 @@ function applySettings(): void {
     },
     ['CORS_ALLOWEDCREDENTIALS']
   );
+}
+
+function goNext(): void {
+  applySettings();
+  navigateTo('/get-started/behaviour/persistence');
 }
 
 function resetToDefaults(): void {

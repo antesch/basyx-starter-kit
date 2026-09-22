@@ -6,6 +6,7 @@ import TimeSeriesPage from '@/pages/get-started/behaviour/time-series.vue';
 import { useAppStore } from '@/stores/app';
 
 vi.stubGlobal('useSeoMeta', vi.fn());
+vi.stubGlobal('navigateTo', vi.fn());
 
 const FieldStub = defineComponent({
   props: { modelValue: { type: String, default: '' }, label: { type: String, default: '' } },
@@ -74,13 +75,14 @@ describe('Time Series page', () => {
       .setValue('external-token');
     await wrapper
       .findAll('button')
-      .find(button => button.text().includes('Apply InfluxDB Settings'))
+      .find(button => button.text().includes('Next'))
       ?.trigger('click');
     await nextTick();
     expect(services(store).telegraf?.environment).toContain(
       'INFLUX_URL=https://influx.example.org'
     );
     expect(services(store).telegraf?.environment).toContain('INFLUX_TOKEN=external-token');
+    expect(navigateTo).toHaveBeenCalledWith('/get-started/visualization/ui');
 
     wrapper.unmount();
     const restored = mount(TimeSeriesPage, { global: { stubs } });

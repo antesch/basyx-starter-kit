@@ -245,8 +245,8 @@
         variant="tonal"
         color="primary"
         append-icon="mdi-arrow-right"
-        to="/get-started/visualization/ui"
         :disabled="selection === 'addTSD' && (Boolean(telegrafError) || !influxSettingsValid)"
+        @click="goNext"
         >Next</v-btn
       >
     </v-card-actions>
@@ -722,6 +722,14 @@ function applyInfluxSettings(): void {
     appStore.updateTimeSeriesData(true);
   }
   addInfluxDBToDockerCompose(false);
+}
+
+function goNext(): void {
+  if (selection.value === 'addTSD') {
+    if (telegrafError.value || !influxSettingsValid.value) return;
+    applyInfluxSettings();
+  }
+  navigateTo('/get-started/visualization/ui');
 }
 
 function onInfluxModeChange(): void {

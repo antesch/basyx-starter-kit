@@ -171,7 +171,8 @@
         variant="tonal"
         color="primary"
         append-icon="mdi-arrow-right"
-        to="/get-started/deployment/access-control"
+        :disabled="usesOtlp && !otlpEndpoint.trim()"
+        @click="goNext"
         >Next</v-btn
       >
     </v-card-actions>
@@ -256,10 +257,9 @@ function syncFromCompose(): void {
 }
 
 function onExporterSelected(value: string): void {
-  if (value === 'otlp') {
+  if (value === 'otlp' && !otlpEndpoint.value.trim()) {
     includeLocalStack.value = true;
     otlpEndpoint.value = 'http://otel-collector:4318';
-    otlpProtocol.value = 'http/protobuf';
   }
 }
 
@@ -349,6 +349,12 @@ function applySettings(): void {
     }
     appStore.setDockerComposeConfig(updated);
   }
+}
+
+function goNext(): void {
+  if (usesOtlp.value && !otlpEndpoint.value.trim()) return;
+  applySettings();
+  navigateTo('/get-started/deployment/access-control');
 }
 
 function resetToDefaults(): void {
